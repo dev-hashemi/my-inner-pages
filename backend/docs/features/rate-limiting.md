@@ -18,7 +18,7 @@ Rate limiting protects API endpoints from abuse using two independent layers:
 - **Default limit**: 60 requests per minute (safety net for all routes).
 - **Per-route overrides**:
   - 5/minute on auth endpoints (`login`, `register`, `reset-password`)
-  - 10/minute on the mirror reflection endpoint (per-user)
+  - The chat stream uses the programmatic per-user limiter
 - **Storage**:
   - Development/testing: in-memory (no dependencies).
   - Production: Redis (shared across blue/green containers).

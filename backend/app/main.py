@@ -7,7 +7,6 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.ai.api.routes import mirror as mirror_router
 from app.ai.api.routes import llm_admin as llm_admin_router
 from app.auth.api.routes import auth as auth_router
 from app.auth.api.routes import google as google_router
@@ -211,7 +210,6 @@ def create_app() -> FastAPI:
     app.include_router(auth_router.router, prefix="/api/v0")
     app.include_router(google_router.router, prefix="/api/v0")
     app.include_router(journals_router.router, prefix="/api/v0")
-    app.include_router(mirror_router.router, prefix="/api/v0")
     app.include_router(llm_admin_router.router, prefix="/api/v0")
     app.include_router(chat_router.router, prefix="/api/v0")
     app.include_router(chat_rest_router.router, prefix="/api/v0")

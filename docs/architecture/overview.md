@@ -84,7 +84,6 @@ App (root)
         │   ├── JournalTimeline (entry cards with tag filters, AND/OR toggle)
         │   ├── TagManager (modal: browse, rename, delete, color picker, cloud view)
         │   └── JournalNavigationSidebar (right overlay)
-        ├── MirrorView (activeView === 'mirror')
         ├── ChatView (always mounted, hidden via CSS when not active)
         │   ├── SSE HTTP POST stream to /api/v0/chat/stream
         │   ├── Message list with Markdown rendering
@@ -170,16 +169,6 @@ Tags follow a hybrid embedded+registry model:
 4. Backend → Route validates → Facade merges → Repository $set
 5. On page load: GET /auth/me returns preferences
 6. ThemeContext merges server preferences with local cache
-```
-
-### AI Reflection Flow
-```
-1. User clicks Mirror → MirrorView
-2. Select mode → API call with mode parameter
-3. Backend → Memory service fetches recent journals
-4. LLM service → Formats context → Calls OpenRouter API
-5. Response → Streams back to frontend
-6. UI displays reflection
 ```
 
 ### Chat Flow

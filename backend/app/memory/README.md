@@ -57,7 +57,6 @@ Builds structured JSON context for LLM prompts:
 
 Settings in `config.py`:
 
-- `default_context_limit`: Default number of journals (default: 10)
 - `max_context_limit`: Maximum context size (default: 50)
 - `max_journals_for_context`: Journals in injected context (default: 5)
 - `max_journals_for_updater`: Journals sent for model updates (default: 50)

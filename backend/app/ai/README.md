@@ -4,14 +4,6 @@ This module provides AI-powered features for the My Inner Pages journaling app.
 
 ## Features
 
-### Mirror — Daily Reflection
-Generates personalized insights based on a user's recent journal entries. Supports four modes:
-
-1. **Emotional** — Focus on feelings and emotional patterns
-2. **Cognitive** — Examine thoughts and beliefs
-3. **Behavioral** — Reflect on actions and habits
-4. **Relational** — Understand relationships and connections
-
 ### Chat — Real-time AI Conversation with Persistence (SSE Streaming)
 HTTP POST + Server-Sent Events (SSE) based chat where the user can have a conversation with the AI.
 Messages are saved to MongoDB as they arrive (user immediately, assistant after
@@ -31,18 +23,16 @@ ai/
 │   ├── litellm_client.py        # LLM client (LiteLLM / OpenAI-compat)
 │   └── mock_llm_client.py       # Mock client for dev/testing
 ├── prompts/
-│   ├── mirror.py                # Mirror prompt templates
 │   └── chat.py                  # Chat prompt templates + conversation formatter
 ├── services/
-│   ├── mirror_service.py        # Mirror reflection orchestration
 │   └── chat_service.py          # Chat orchestration with streaming + memory
 └── api/
     ├── routes/
-    │   ├── mirror.py            # GET /mirror/reflection
+    │   ├── llm_admin.py         # LLM provider management routes
     │   └── chat.py              # POST /chat/stream
     └── schemas/
-        ├── request.py           # Stream request model
-        └── response.py          # REST response models
+        ├── llm_admin.py         # Provider management schemas
+        └── request.py           # Stream request model
 ```
 
 ## Configuration
@@ -60,23 +50,6 @@ CHAT_TEMPERATURE=0.7
 ```
 
 ## API Endpoints
-
-### REST
-
-#### GET `/api/v0/mirror/reflection`
-
-**Query Parameters:**
-- `mode` (optional): `emotional`, `cognitive`, `behavioral`, `relational`. Defaults to `emotional`.
-
-**Response:**
-```json
-{
-  "reflection": "Your recent entries show...",
-  "mode": "emotional",
-  "available_modes": ["emotional", "cognitive", "behavioral", "relational"],
-  "error": null
-}
-```
 
 ### SSE Stream
 

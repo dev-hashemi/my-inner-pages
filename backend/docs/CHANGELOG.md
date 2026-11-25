@@ -4,6 +4,11 @@ All notable changes to the backend will be documented in this file.
 
 ## [Unreleased]
 
+## [v0.6.0-alpha] - 2026-11-25
+
+### Removed
+- Removed the Mirror reflection endpoint, prompt templates, and settings.
+
 ### Changed
 - **Rate Limiting**: Replaced custom in-memory rate limiter with slowapi + Redis.
   - Redis backend for shared state across blue/green containers (production).
@@ -16,7 +21,6 @@ All notable changes to the backend will be documented in this file.
     3. `X-Forwarded-For` fallback for dev without nginx.
   - `get_current_user` stashes user on `request.state` for per-user limiting.
   - `rate_limit_enabled` toggle (not just production guard) now respected.
-  - Mirror endpoint uses `@limiter.limit("10/minute")` instead of inline.
 - **429 Responses**: Include `Retry-After` header parsed from the limit window.
 
 ### Added

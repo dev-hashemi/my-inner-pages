@@ -16,7 +16,7 @@ Python 3.11+ FastAPI server with MongoDB/Beanie, LangChain AI, JWT auth.
 - `structlog` for structured logging (key-value pairs)
 
 ## Architecture
-- **Domain modules:** `auth/`, `journals/`, `chat/`, `ai/`, `memory/`
+- **Domain modules:** `auth/`, `journals/`, `chat/`, `ai/` (streaming chat and LLM provider management), `memory/`
 - **Shared infra:** `core/` (config, logging, middleware, rate-limit, cache, deps)
 - **Layer pattern per module:** `api/routes/` → `facade/` → `services/` → `db/repository.py`
 - **Auth module sub-services:** `TokenService` (JWT + hashing), `SessionService` (session lifecycle + RTR + Redis blacklisting), `SessionRepository` (RefreshToken persistence), `UserAgentService` (UA parsing), `CookieService`, `TokenBlacklistService`

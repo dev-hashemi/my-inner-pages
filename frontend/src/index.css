@@ -338,10 +338,6 @@ html::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--border-def
 }
 
 /* Lens icon colors */
-.landing-lens-rose { color: #be123c; }
-.landing-lens-indigo { color: #4338ca; }
-.landing-lens-emerald { color: #047857; }
-.landing-lens-amber { color: #b45309; }
 
 /* ======== Dark mode overrides ======== */
 [data-mode="dark"] .landing-bg {
@@ -417,10 +413,6 @@ html::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--border-def
   background: #24201a;
 }
 
-[data-mode="dark"] .landing-lens-rose { color: #fb7185; }
-[data-mode="dark"] .landing-lens-indigo { color: #818cf8; }
-[data-mode="dark"] .landing-lens-emerald { color: #34d399; }
-[data-mode="dark"] .landing-lens-amber { color: #db935a; }
 
 /* ============================================================
    Tiptap / ProseMirror Rich Text Editor Styles

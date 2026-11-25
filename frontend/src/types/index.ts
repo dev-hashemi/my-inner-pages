@@ -17,10 +17,10 @@ export interface JournalEntry {
   rumination_index?: number | null;
 }
 
-export type ViewType = 'journal' | 'discoveries' | 'mirror' | 'chat' | 'settings' | 'admin' | 'feedback';
+export type ViewType = 'journal' | 'discoveries' | 'chat' | 'settings' | 'admin' | 'feedback';
 
 export function isValidView(v: string): v is ViewType {
-  return v === 'journal' || v === 'discoveries' || v === 'mirror' || v === 'chat' || v === 'settings' || v === 'admin' || v === 'feedback';
+  return v === 'journal' || v === 'discoveries' || v === 'chat' || v === 'settings' || v === 'admin' || v === 'feedback';
 }
 
 
@@ -50,5 +50,4 @@ export * from './auth';
 export * from './admin';
 export * from './feedback';
 export * from './chat';
-export * from './mirror';
 export * from './discoveries';

@@ -32,7 +32,7 @@ tests/E2E/
 │   └── README.md              # Journals tests documentation
 │
 ├── ai/                        # AI module tests
-│   ├── test_mirror_reflection.py # Mirror reflections (9 tests)
+│   ├── test_llm_admin_*.py    # LLM provider management
 │   └── README.md              # AI tests documentation
 │
 └── memory/                    # Memory module tests
@@ -153,15 +153,9 @@ async def test_create_journal_happy_path(authenticated_client: AsyncClient, test
 - ✅ User isolation (users can only access their own journals)
 - ✅ Proper error responses (404 for not found)
 
-### AI Module (9 tests)
-- ✅ Mirror reflection generation
-- ✅ Different reflection modes (emotional, cognitive, behavioral, relational)
-- ✅ Welcome reflections for new users
-- ✅ Context-aware reflections based on journals
-- ✅ Mode-specific response validation
-- ✅ Invalid mode handling
-- ✅ Authentication requirements
-- ✅ Mock LLM integration (no API costs)
+### AI Module
+- ✅ Provider listing, updates, reload, and diagnostics
+- ✅ Admin access checks
 
 ### Memory Module (4 tests)
 - ✅ User model CRUD operations
@@ -202,4 +196,4 @@ Potential areas for expansion:
 - Performance/load testing
 - Integration with CI/CD pipeline
 - Test coverage metrics
-- Tests for AI/Mirror module routes
+- Additional coverage for AI provider management routes

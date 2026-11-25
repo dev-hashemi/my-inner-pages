@@ -29,7 +29,7 @@ app/
 ├── ai/                # AI features
 │   ├── integrations/  # LLM clients (OpenRouter, Mock)
 │   ├── prompts/       # LangChain prompt templates
-│   ├── services/      # Mirror + Chat business logic
+│   ├── services/      # Chat and LLM provider services
 │   └── api/routes/    # REST endpoints
 ├── memory/            # User model + context injection for AI
 │   ├── db/            # UserModel document + repository
@@ -85,7 +85,6 @@ Set `EMAIL_VERIFICATION_REQUIRED=false` in `.env` to skip email verification and
   - `PUT /tags/{name}` — rename tag across all journals
   - `PATCH /tags/{name}` — update tag metadata (color)
   - `DELETE /tags/{name}` — delete tag from all journals
-- **Mirror** (`/api/v0/mirror`) — AI reflections (JWT required)
   - `GET /reflection?mode=emotional|cognitive|behavioral|relational`
 - **Memory** (`/api/v0/memory`) — user model (dev only)
   - `POST /update-user-model` — manual LLM re-build

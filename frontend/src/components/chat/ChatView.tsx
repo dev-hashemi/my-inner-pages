@@ -255,8 +255,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-accent/10 text-accent border border-accent/20">
                         {chatContext.type === 'journal' ? (
                           <>Chatting about: {chatContext.title}</>
-                        ) : chatContext.type === 'mirror' ? (
-                          <>Exploring: {chatContext.mode} Reflection</>
                         ) : (
                           <>Exploring: Observation</>
                         )}

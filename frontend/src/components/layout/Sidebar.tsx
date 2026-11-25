@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Compass, Sparkles, MessageCircle, Settings, Shield, HeartHandshake } from 'lucide-react';
+import { BookOpen, Compass, MessageCircle, Settings, Shield, HeartHandshake } from 'lucide-react';
 import { ViewType } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -13,7 +13,6 @@ interface SidebarProps {
 const MAIN_ITEMS: { view: ViewType; icon: typeof BookOpen; label: string }[] = [
   { view: 'journal', icon: BookOpen, label: 'Journal' },
   { view: 'discoveries', icon: Compass, label: 'Discoveries' },
-  { view: 'mirror', icon: Sparkles, label: 'Mirror' },
   { view: 'chat', icon: MessageCircle, label: 'Chat' },
 ];
 

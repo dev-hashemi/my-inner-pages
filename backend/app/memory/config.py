@@ -17,7 +17,6 @@ class MemoryModuleConfig(BaseSettings):
         env_prefix="MEMORY_",
     )
 
-    default_context_limit: int = 10
     max_context_limit: int = 50
 
     max_journals_for_context: int = 5

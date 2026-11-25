@@ -11,7 +11,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    API Routes Layer                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   Auth       │  │  Journals    │  │   Mirror     │      │
+│  │   Auth       │  │  Journals    │  │   AI Chat    │      │
 │  │   Routes     │  │   Routes     │  │   Routes     │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 └─────────────────────────────────────────────────────────────┘
@@ -21,7 +21,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    Facades Layer                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ AuthFacade   │  │JournalFacade │  │MirrorService │      │
+│  │ AuthFacade   │  │JournalFacade │  │ ChatFacade   │      │
 │  │              │  │              │  │              │      │
 │  │ Business     │  │ Business     │  │ Business     │      │
 │  │ Logic        │  │ Logic        │  │ Logic        │      │
@@ -103,7 +103,7 @@ Application Startup
         │                                 │
         ▼                                 ▼
 ┌───────────────────┐          ┌───────────────────┐
-│get_auth_facade()  │          │get_mirror_service()│
+│get_auth_facade()  │          │ get_chat_service()│
 │ Needs:            │          │ Needs:            │
 │ - Repository      │          │ - LLM Service     │
 │ - JWT Service     │          │ - Memory Service  │
@@ -156,13 +156,11 @@ app/journals/
 ```
 app/ai/
 ├── api/routes/
-│   ├── chat.py                 # SSE streaming route — authenticates, rate-limits, delegates to ChatFacade
-│   └── mirror.py               # REST route — delegates to MirrorService
+│   └── chat.py                 # SSE streaming route — authenticates, rate-limits, delegates to ChatFacade
 ├── facade/
 │   └── chat_facade.py          # SSE chat streaming orchestrator (business logic)
 ├── services/
-│   ├── chat_service.py         # LLM prompt building + streaming (reusable, not chat-SPA-specific)
-│   └── mirror_service.py       # Mirror reflection logic
+│   └── chat_service.py         # LLM prompt building + streaming (reusable, not chat-SPA-specific)
 ├── config.py                   # Module config
 └── deps.py                     # Dependency providers ⭐
 ```

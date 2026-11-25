@@ -38,5 +38,4 @@ export interface ChatState {
 
 export type ChatContext =
   | { type: 'journal'; title: string }
-  | { type: 'mirror'; mode: string }
   | { type: 'discoveries'; insight: string };

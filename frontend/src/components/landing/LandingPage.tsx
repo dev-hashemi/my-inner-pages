@@ -33,7 +33,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       <LandingSanctuaryDemo />
 
       {/* Epistemic Stance & Guardrails */}
-      <section id="lenses" className="py-24 px-6 landing-surface">
+      <section className="py-24 px-6 landing-surface">
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>

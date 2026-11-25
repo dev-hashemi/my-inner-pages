@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import {
   BookOpen,
-  Eye,
-  Heart,
-  Brain,
   Sparkles,
-  MessageCircle,
   RefreshCw,
   Compass,
   ChevronRight
 } from 'lucide-react';
 
 export const LandingSanctuaryDemo: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'editor' | 'lenses' | 'grounding' | 'patterns'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'grounding' | 'patterns'>('editor');
 
   return (
     <section id="sanctuary-demo" className="py-24 px-6">
@@ -36,15 +32,7 @@ export const LandingSanctuaryDemo: React.FC = () => {
               activeTab === 'editor' ? 'landing-tab-active shadow-sm' : 'landing-tab-inactive'
             }`}
           >
-            1. Writing Sanctuary
-          </button>
-          <button
-            onClick={() => setActiveTab('lenses')}
-            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              activeTab === 'lenses' ? 'landing-tab-active shadow-sm' : 'landing-tab-inactive'
-            }`}
-          >
-            2. Reflective Lenses
+            Writing Sanctuary
           </button>
           <button
             onClick={() => setActiveTab('grounding')}
@@ -52,7 +40,7 @@ export const LandingSanctuaryDemo: React.FC = () => {
               activeTab === 'grounding' ? 'landing-tab-active shadow-sm' : 'landing-tab-inactive'
             }`}
           >
-            3. Rumination Pivot
+            Rumination Pivot
           </button>
           <button
             onClick={() => setActiveTab('patterns')}
@@ -60,7 +48,7 @@ export const LandingSanctuaryDemo: React.FC = () => {
               activeTab === 'patterns' ? 'landing-tab-active shadow-sm' : 'landing-tab-inactive'
             }`}
           >
-            4. Pattern Synthesis (Preview)
+            Pattern Synthesis (Preview)
           </button>
         </div>
 
@@ -82,56 +70,6 @@ export const LandingSanctuaryDemo: React.FC = () => {
               <div className="p-4 rounded-2xl landing-surface text-xs leading-relaxed landing-body flex items-start gap-3">
                 <BookOpen className="w-4 h-4 landing-icon shrink-0 mt-0.5" />
                 <span>A clean, calm canvas with no distractions, formatting pressure, or AI interference while you write.</span>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'lenses' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b pb-4 border-subtle">
-                <div className="flex items-center gap-3">
-                  <Eye className="w-5 h-5 landing-icon" />
-                  <span className="font-serif text-lg font-medium landing-heading">Reflective Lenses</span>
-                </div>
-                <span className="text-xs landing-muted">4 Angles of Reflection</span>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4 text-sm">
-                <div className="p-4 rounded-2xl landing-surface border">
-                  <div className="flex items-center gap-2 mb-2 font-serif font-medium landing-heading">
-                    <Heart className="w-4 h-4 landing-lens-rose" />
-                    <span>Emotional Lens</span>
-                  </div>
-                  <p className="landing-body text-xs leading-relaxed">
-                    Highlights underlying feelings and emotional shifts present in your writing.
-                  </p>
-                </div>
-                <div className="p-4 rounded-2xl landing-surface border">
-                  <div className="flex items-center gap-2 mb-2 font-serif font-medium landing-heading">
-                    <Brain className="w-4 h-4 landing-lens-indigo" />
-                    <span>Cognitive Lens</span>
-                  </div>
-                  <p className="landing-body text-xs leading-relaxed">
-                    Maps active thought patterns, assumptions, and implicit core beliefs.
-                  </p>
-                </div>
-                <div className="p-4 rounded-2xl landing-surface border">
-                  <div className="flex items-center gap-2 mb-2 font-serif font-medium landing-heading">
-                    <Sparkles className="w-4 h-4 landing-lens-emerald" />
-                    <span>Behavioral Lens</span>
-                  </div>
-                  <p className="landing-body text-xs leading-relaxed">
-                    Connects stated intentions with actual choices and daily actions.
-                  </p>
-                </div>
-                <div className="p-4 rounded-2xl landing-surface border">
-                  <div className="flex items-center gap-2 mb-2 font-serif font-medium landing-heading">
-                    <MessageCircle className="w-4 h-4 landing-lens-amber" />
-                    <span>Relational Lens</span>
-                  </div>
-                  <p className="landing-body text-xs leading-relaxed">
-                    Examines interpersonal dynamics, boundaries, and communication themes.
-                  </p>
-                </div>
               </div>
             </div>
           )}

@@ -7,8 +7,6 @@ import { LandingPage } from '@components/landing';
 import { AuthContainer } from '@components/auth';
 import { Header, Sidebar, AlphaWarningModal } from '@components/layout';
 import { JournalView, ConfirmModal } from '@components/journal';
-import { MirrorView } from '@components/mirror';
-import { MirrorReflection, MirrorMode } from '@/types/mirror';
 import { DiscoveriesView } from '@components/discoveries';
 import { PatternExcerpt } from '@/types/discoveries';
 import { ChatView } from '@components/chat';
@@ -55,15 +53,6 @@ const AppInner: React.FC = () => {
   const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
   const [chatInitialMessage, setChatInitialMessage] = useState<string | null>(null);
   const [chatContext, setChatContext] = useState<ChatContext | null>(null);
-  const [mirrorReflections, setMirrorReflections] = useState<Record<MirrorMode, MirrorReflection | null>>({
-    emotional: null,
-    cognitive: null,
-    behavioral: null,
-    relational: null,
-  });
-  const handleMirrorReflectionChange = useCallback((mode: MirrorMode, reflection: MirrorReflection | null) => {
-    setMirrorReflections(prev => ({ ...prev, [mode]: reflection }));
-  }, []);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const { shortSurveyTrigger, setShortSurveyTrigger } = useFeedbackTriggers();
   const sessionEntryCount = useRef(0);
@@ -162,14 +151,6 @@ const AppInner: React.FC = () => {
     updateNavigationState({ activeView: 'chat', selectedEntryId: null, selectedChatId: 'new' });
   };
 
-  const handleStartChatFromMirror = (reflection: string, mode: string) => {
-    setChatInitialMessage(
-      `I just received this ${mode.toLowerCase()} reflection on my journaling and I'd like to explore it with you:\n\n${reflection}`
-    );
-    setChatContext({ type: 'mirror', mode });
-    updateNavigationState({ activeView: 'chat', selectedEntryId: null, selectedChatId: 'new' });
-  };
-
   const handleStartChatFromDiscoveries = (insight: string, excerpts?: PatternExcerpt[]) => {
     let message = `I'd like to explore this observation noticed in my journaling:\n\n"${insight}"`;
     if (excerpts && excerpts.length > 0) {
@@ -258,8 +239,6 @@ const AppInner: React.FC = () => {
         {activeView === 'discoveries' && (
           <DiscoveriesView onStartChat={handleStartChatFromDiscoveries} />
         )}
-
-        {activeView === 'mirror' && <MirrorView isDark={isDark} onStartChat={handleStartChatFromMirror} reflections={mirrorReflections} onReflectionChange={handleMirrorReflectionChange} />}
 
         <div className={activeView === 'chat' ? '' : 'hidden'}>
           <ChatView

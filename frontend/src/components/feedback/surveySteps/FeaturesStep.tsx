@@ -1,4 +1,4 @@
-import { FileText, Sparkles, MessageCircle, Minus, Meh, Bot, EyeOff, ThumbsUp } from 'lucide-react';
+import { FileText, Sparkles, MessageCircle, Minus, Meh, Bot, EyeOff } from 'lucide-react';
 import { VisualSelect, VisualMultiSelect } from './SurveyControls';
 
 export function FeaturesStep({ answers, setAnswer }: { answers: Record<string, unknown>; setAnswer: (k: string, v: unknown) => void }) {
@@ -8,7 +8,6 @@ export function FeaturesStep({ answers, setAnswer }: { answers: Record<string, u
         label="Which of these did you try?"
         options={[
           { value: 'Writing entries', label: 'Writing entries', icon: FileText },
-          { value: 'Mirror Reflections', label: 'Mirror Reflections', icon: Sparkles },
           { value: 'Chat', label: 'Chat', icon: MessageCircle },
           { value: 'None beyond journaling', label: 'None beyond', icon: Minus },
         ]}
@@ -19,7 +18,6 @@ export function FeaturesStep({ answers, setAnswer }: { answers: Record<string, u
         label="Of the ones you tried, which felt most useful?"
         options={[
           { value: 'Writing entries', label: 'Writing entries', icon: FileText },
-          { value: 'Mirror Reflections', label: 'Mirror Reflections', icon: Sparkles },
           { value: 'Chat', label: 'Chat', icon: MessageCircle },
           { value: 'None beyond journaling', label: 'None beyond', icon: Minus },
         ]}
@@ -36,16 +34,6 @@ export function FeaturesStep({ answers, setAnswer }: { answers: Record<string, u
         ]}
         value={answers.ai_personalization as string | undefined}
         onChange={v => setAnswer('ai_personalization', v)}
-      />
-      <VisualSelect
-        label="Did the Mirror Reflections feel accurate or generic?"
-        options={[
-          { value: 'Accurate', label: 'Accurate', icon: ThumbsUp },
-          { value: 'A bit generic', label: 'A bit generic', icon: Meh },
-          { value: "Didn't try it", label: "Didn't try it", icon: EyeOff },
-        ]}
-        value={answers.mirror_accuracy as string | undefined}
-        onChange={v => setAnswer('mirror_accuracy', v)}
       />
       <VisualSelect
         label="Did the AI chat feel like a real conversation or more like a scripted bot?"

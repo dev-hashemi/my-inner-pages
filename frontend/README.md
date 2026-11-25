@@ -18,13 +18,11 @@ src/
 │   ├── auth/          # Authentication (Login, Register, etc)
 │   ├── journal/       # Journal entries, pages, tags
 │   ├── chat/          # AI Chat (ChatView, ChatHistorySidebar, MarkdownRenderer)
-│   ├── mirror/        # AI reflection feature
 │   ├── settings/      # User settings
 │   ├── layout/        # Header, Sidebar
 │   └── common/        # Reusable components (DropdownMenu, IconButton)
 ├── contexts/          # React contexts (AuthContext)
 ├── hooks/             # Custom hooks (useChatStream, useJournalEntries, useSettings, usePageFlip)
-├── constants/         # Theme & mirror mode configs
 ├── types/             # TypeScript types (includes chat types)
 └── utils/             # Helpers (theme, errorHandler, fonts, textDirection, api)
 ```
@@ -67,7 +65,6 @@ To add a new variable in production (e.g. `VITE_SENTRY_DSN`), you must also crea
   Auto-title from first user message. Per-message delivery status (sending/delivered/failed).
   Cancel streaming mid-response via AbortController. Access via list icon in top-right corner
   (chat section). Preserved across view switches within a session.
-- **Mirror** - AI reflections in 4 modes (emotional, cognitive, behavioral, relational)
 - **Themes** - Vintage, minimal, dark
 - **Settings** - Font, size, theme, ambient sound
 
@@ -97,7 +94,7 @@ npm run test:e2e
 
 ## Architecture
 
-Single-page app with feature-based organization. Auth state via Context API. Single-page navigation via custom `useRouter` hook synchronized with URL query parameters and HTML5 history events (`popstate`), conditionally rendering active views (`journal` | `mirror` | `chat` | `settings` | `admin` | `feedback`).
+Single-page app with feature-based organization. Auth state via Context API. Single-page navigation via custom `useRouter` hook synchronized with URL query parameters and HTML5 history events (`popstate`), conditionally rendering active views (`journal` | `discoveries` | `chat` | `settings` | `admin` | `feedback`).
 
 **User Flow:**
 1. Unauthenticated users see landing page

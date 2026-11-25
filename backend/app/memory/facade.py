@@ -23,10 +23,8 @@ class MemoryFacade:
     async def get_recent_journals(
         self,
         user_id: str,
-        limit: int = None
+        limit: int
     ) -> list[Journal]:
-        if limit is None:
-            limit = self.config.default_context_limit
         limit = min(limit, self.config.max_context_limit)
 
         logger.info("fetching_journals", user_id=user_id, limit=limit)
@@ -38,35 +36,6 @@ class MemoryFacade:
         
         logger.info("journals_fetched", user_id=user_id, count=len(journals))
         return journals
-
-    async def build_journal_context(
-        self,
-        user_id: str,
-        limit: int = None
-    ) -> str:
-        logger.info("building_journal_context", user_id=user_id, limit=limit)
-
-        journals = await self.get_recent_journals(user_id, limit)
-
-        if not journals:
-            logger.info("no_journals_found", user_id=user_id)
-            return "No journal entries available yet."
-
-        logger.info("building_context_from_journals", journal_count=len(journals))
-
-        context_parts = []
-        for i, journal in enumerate(journals, 1):
-            context_parts.append(
-                f"Entry {i} ({journal.created_at.strftime('%Y-%m-%d')}):\n"
-                f"Title: {journal.title}\n"
-                f"Content: {journal.content_text}\n"
-                f"Tags: {', '.join(journal.tags) if journal.tags else 'None'}\n"
-            )
-
-        context = "\n---\n".join(context_parts)
-        logger.info("context_built", total_length=len(context))
-
-        return context
 
     async def build_injected_context(
         self,

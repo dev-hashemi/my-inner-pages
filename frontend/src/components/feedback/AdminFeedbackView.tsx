@@ -70,7 +70,6 @@ export const AdminFeedbackView: React.FC = () => {
     features_tried: 'Features tried',
     features_most_useful: 'Most useful feature',
     ai_personalization: 'AI personalization',
-    mirror_accuracy: 'Mirror accuracy',
     chat_realism: 'Chat realism',
     overall_feel: 'Overall feel',
     self_understanding: 'Self-understanding',

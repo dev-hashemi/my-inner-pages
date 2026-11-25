@@ -1,7 +1,6 @@
 """Tests for rate limiting functionality.
 
-Verifies that slowapi correctly enforces per-IP rate limits on auth endpoints,
-and that per-user rate limits work for the mirror endpoint.
+Verifies that slowapi correctly enforces per-IP rate limits on auth endpoints.
 """
 
 import pytest
@@ -13,7 +12,6 @@ from app.core.rate_limit import limiter
 AUTH_LOGIN = "/api/v0/auth/login"
 AUTH_REGISTER = "/api/v0/auth/register"
 AUTH_RESET_PASSWORD = "/api/v0/auth/reset-password"
-MIRROR_REFLECTION = "/api/v0/mirror/reflection"
 
 
 @pytest.mark.asyncio
@@ -118,42 +116,6 @@ async def test_reset_password_rate_limited(client: AsyncClient):
 
     resp = await client.post(AUTH_RESET_PASSWORD, json=payload)
     assert resp.status_code == 429
-
-
-@pytest.mark.asyncio
-async def test_mirror_rate_limit_per_user(authenticated_client: AsyncClient):
-    """GET /mirror/reflection should enforce per-user rate limit of 10/minute."""
-    limiter.reset()
-
-    for _ in range(10):
-        resp = await authenticated_client.get(MIRROR_REFLECTION)
-        assert resp.status_code != 429, f"Unexpected 429 on attempt {_+1}"
-
-    resp = await authenticated_client.get(MIRROR_REFLECTION)
-    assert resp.status_code == 429
-
-
-@pytest.mark.asyncio
-async def test_mirror_rate_limit_independent_users(
-    authenticated_client: AsyncClient,
-    another_test_user: dict,
-    client: AsyncClient,
-):
-    """Two different users should have independent mirror rate limit counters."""
-    limiter.reset()
-
-    # Exhaust user A's limit
-    for _ in range(10):
-        resp = await authenticated_client.get(MIRROR_REFLECTION)
-        assert resp.status_code != 429
-
-    resp = await authenticated_client.get(MIRROR_REFLECTION)
-    assert resp.status_code == 429
-
-    # User B (different token) should have a fresh counter
-    client.cookies.set("access_token", another_test_user["access_token"])
-    resp = await client.get(MIRROR_REFLECTION)
-    assert resp.status_code != 429
 
 
 @pytest.mark.asyncio

@@ -16,7 +16,6 @@ export const Header: React.FC<HeaderProps> = ({
   const getViewTitle = () => {
     switch (activeView) {
       case 'journal': return 'Your Journal';
-      case 'mirror': return 'Mirror';
       case 'chat': return 'Chat';
       case 'settings': return 'Settings';
       default: return 'Your Journal';

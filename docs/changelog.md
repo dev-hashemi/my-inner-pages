@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.6.0-alpha] - 2026-11-25
+
+### Removed
+- Removed Mirror from the landing page, app, feedback survey, and API.
+
 ### Added
 - **Discoveries View & Grounded Insights (`[G-13]`)**: Added Discoveries dashboard (`DiscoveriesView.tsx`, `GET /api/v0/discoveries`) featuring real-time writing journey stats, dynamic word counts, and emerging patterns strictly verified against exact journal quotes with negative valence gating.
 - **Admin LLM Presets & Diagnostics**: Added Groq GPT OSS 120 (`groq/openai/gpt-oss-120b`) and OpenRouter Gemma 4 presets, with extended token budgets/timeouts for reasoning models.

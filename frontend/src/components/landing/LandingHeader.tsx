@@ -29,9 +29,6 @@ export const LandingHeader: React.FC<LandingHeaderProps> = ({ onGetStarted, onSc
           <button onClick={() => onScrollTo('sanctuary-demo')} className="hover:opacity-80 transition-opacity">
             The Ritual
           </button>
-          <button onClick={() => onScrollTo('lenses')} className="hover:opacity-80 transition-opacity">
-            Lenses
-          </button>
           <button onClick={() => onScrollTo('privacy')} className="hover:opacity-80 transition-opacity">
             Privacy
           </button>

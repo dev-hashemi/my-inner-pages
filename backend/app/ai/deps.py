@@ -12,7 +12,6 @@ from app.ai.integrations.base import LLMClient
 from app.ai.integrations.litellm_client import LiteLLMClient
 from app.ai.integrations.mock_llm_client import MockLLMClient
 from app.ai.services.chat_service import ChatService
-from app.ai.services.mirror_service import MirrorService
 from app.chat.deps import get_chat_facade
 from app.chat.facade import ChatPersistenceFacade
 from app.journals.db.repository import JournalRepository
@@ -94,19 +93,6 @@ async def reload_llm_client(
     _cached_providers = None
     get_cached_litellm_client.cache_clear()
     return await get_llm_client(config, repository)
-
-
-def get_mirror_service(
-    llm_client: LLMClient = Depends(get_llm_client),
-    memory_service: MemoryFacade = Depends(get_memory_facade),
-    config: AIModuleConfig = Depends(get_ai_config),
-) -> MirrorService:
-    """Get mirror service with all dependencies injected."""
-    return MirrorService(
-        llm_client=llm_client,
-        memory_service=memory_service,
-        config=config,
-    )
 
 
 def get_chat_service(

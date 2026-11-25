@@ -11,7 +11,7 @@ tests/
 ├── E2E/                     # End-to-End tests (full API + DB)
 │   ├── auth/                # Authentication module tests
 │   ├── journals/            # Journal module tests
-│   ├── ai/                  # AI/Mirror module tests
+│   ├── ai/                  # AI provider management tests
 │   ├── chat/                # Chat module tests
 │   └── memory/              # Memory module tests
 ├── Integration/             # Integration tests (component-level)
@@ -136,7 +136,7 @@ async def test_user_isolation(client: AsyncClient, test_user: dict, another_test
 - Additional journal CRUD operations (list, get, update, delete)
 - Edge cases and error handling
 - Authentication module tests
-- AI/Mirror module tests
+- AI provider management tests
 
 ## Notes
 

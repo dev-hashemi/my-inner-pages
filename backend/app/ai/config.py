@@ -25,20 +25,8 @@ class AIModuleConfig(BaseSettings):
     llm_temperature: float = 0.7
     llm_timeout: int = 30
 
-    # Mirror Reflection Settings
-    max_journals_for_mirror: int = 10
-    mirror_reflection_modes: list[str] = [
-        "emotional",
-        "cognitive",
-        "behavioral",
-        "relational"
-    ]
-
     # Chat Settings
     chat_max_tokens: int = 1000
     chat_temperature: float = 0.7
     max_journals_for_chat_context: int = 10
     llm_rate_limit: int = 10
-
-    # Feature Flags
-    enable_mirror: bool = True
