@@ -192,4 +192,47 @@ test.describe('Local-first editor regressions', () => {
     const titleInput = page.locator('input[placeholder="Title..."]');
     await expect(titleInput).toHaveValue(newTitle);
   });
+
+  test('isolates offline drafts across different users on the same browser', async ({ page, request }) => {
+    // Queue an unsynced draft for User A in localStorage
+    await page.evaluate(() => {
+      localStorage.setItem('my-inner-pages-unsynced-journals', JSON.stringify({
+        'draft-user-a': {
+          id: 'draft-user-a',
+          title: 'User A Private Draft',
+          content: 'Should never sync to User B',
+          tags: [],
+          date: 'Nov 25, 2026',
+          created_at: new Date().toISOString(),
+        },
+      }));
+    });
+
+    // Log out User A via Settings
+    await page.locator('header button').first().click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByText('Logout').first().click();
+    await page.getByRole('dialog', { name: 'Logout' }).getByRole('button', { name: 'Logout', exact: true }).click();
+    await expect(page.getByText('Meet Yourself on the Page')).toBeVisible({ timeout: 10000 });
+
+    // Register & log in as User B in the same browser context
+    const emailB = `e2e-lf-b-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.com`;
+    await request.post('/api/v0/auth/register', {
+      data: { email: emailB, password: 'TestPassword123!', confirm_password: 'TestPassword123!' },
+    });
+    const resB = await request.post('/api/v0/auth/login', {
+      data: { email: emailB, password: 'TestPassword123!' },
+    });
+    const dataB = await resB.json();
+    await page.context().clearCookies();
+    await page.context().addCookies([
+      { name: 'access_token', value: dataB.access_token, path: '/', domain: 'localhost' },
+      { name: 'session_exists', value: 'true', path: '/', domain: 'localhost' },
+    ]);
+    await page.goto('/');
+    await dismissAlphaModal(page);
+    await expect(page.getByRole('heading', { name: /Your Journal/i })).toBeVisible({ timeout: 10000 });
+
+    await expect(page.locator('h2').filter({ hasText: 'User A Private Draft' })).toHaveCount(0);
+  });
 });

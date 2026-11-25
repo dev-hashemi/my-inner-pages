@@ -16,6 +16,7 @@ interface UseJournalAutosaveParams {
   allTags: string[];
   entryDate: string;
   onCreate?: (title: string, content: string, tags: string[], created_at?: string, content_json?: unknown) => Promise<number | string>;
+  onDraftCreated?: (draftId: string) => void;
   onUpdate?: (updates: Partial<JournalEntry>) => void;
   onUpdateById?: (id: string | number, updates: Partial<JournalEntry>) => Promise<void>;
 }
@@ -38,6 +39,7 @@ export function useJournalAutosave({
   allTags,
   entryDate,
   onCreate,
+  onDraftCreated,
   onUpdate,
   onUpdateById,
 }: UseJournalAutosaveParams) {
@@ -114,10 +116,7 @@ export function useJournalAutosave({
           };
           saveUnsyncedEntry(updatedEntry);
           setSaveStatus('unsynced');
-
-          if (onUpdateById) {
-            await onUpdateById(tempId, updatedEntry);
-          }
+          onDraftCreated?.(tempId);
           return tempId;
         } finally {
           creationPromiseRef.current = null;
@@ -192,7 +191,7 @@ export function useJournalAutosave({
       }
       return;
     }
-  }, [isNew, title, content, contentJson, editor, allTags, entryDate, entry, onCreate, onUpdate, onUpdateById]);
+  }, [isNew, title, content, contentJson, editor, allTags, entryDate, entry, onCreate, onDraftCreated, onUpdate, onUpdateById]);
 
   const handleRetry = useCallback(async () => {
     if (isNew && entryIdRef.current?.toString().startsWith('draft-')) {

@@ -1,6 +1,6 @@
 import { useReducer, useRef, useCallback, useEffect } from 'react';
 import type { ChatMessage, ConnectionState, MessageStatus } from '@/types/chat';
-import { api } from '@utils/api';
+import { api, ApiError, fetchWithAuth } from '@utils/api';
 import { chatResponseSchema } from '@/types/schemas';
 import { chatReducer, initialChatState } from './chatReducer';
 import { buildUserMessage, buildPlaceholder } from './chatHelpers';
@@ -61,15 +61,9 @@ export function useChatStream(): UseChatStreamReturn {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v0';
-
       try {
-        const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+        const response = await fetchWithAuth('/chat/stream', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
           body: JSON.stringify({
             content,
             chat_id: targetChatId,
@@ -78,19 +72,6 @@ export function useChatStream(): UseChatStreamReturn {
           }),
           signal: controller.signal,
         });
-
-        if (!response.ok) {
-          let errorMsg = 'Failed to connect to server';
-          try {
-            const errJson = await response.json();
-            errorMsg = errJson.detail || errorMsg;
-          } catch {}
-          dispatch({ type: 'STREAM_ERROR', error: errorMsg });
-          if (response.status === 401) {
-            window.dispatchEvent(new CustomEvent('auth:expired'));
-          }
-          return;
-        }
 
         if (!response.body) {
           dispatch({ type: 'STREAM_ERROR', error: 'No response body received' });
@@ -170,6 +151,8 @@ export function useChatStream(): UseChatStreamReturn {
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
           dispatch({ type: 'STOP_STREAMING' });
+        } else if (err instanceof ApiError) {
+          dispatch({ type: 'STREAM_ERROR', error: err.message });
         } else {
           dispatch({
             type: 'STREAM_ERROR',

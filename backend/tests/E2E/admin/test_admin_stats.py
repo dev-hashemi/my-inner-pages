@@ -115,3 +115,30 @@ async def test_admin_can_toggle_user_status_and_delete(admin_client: AsyncClient
     # Verify user no longer exists
     deleted_user = await User.get(target_id)
     assert deleted_user is None
+
+
+async def test_admin_delete_user_cascades_all_collections(admin_client: AsyncClient):
+    """Test deleting a user removes Tags, UserModel, and Feedback in addition to Journals and Chats."""
+    from app.journals.db.tag_model import Tag
+    from app.memory.db.models import UserModel
+    from app.feedback.db.models import Feedback
+
+    target_user = User(email="cascade_user@example.com", role="user", is_active=True)
+    await target_user.insert()
+    target_id = str(target_user.id)
+
+    await Tag(user_id=target_id, name="cascade-tag", usage_count=1).insert()
+    await UserModel(user_id=target_id).insert()
+    await Feedback(
+        user_id=target_id,
+        variant="short",
+        trigger="manual",
+        answers={"overall_feel": 5},
+    ).insert()
+
+    del_resp = await admin_client.delete(f"/api/v0/admin/users/{target_id}")
+    assert del_resp.status_code == 204
+
+    assert await Tag.find(Tag.user_id == target_id).count() == 0
+    assert await UserModel.find(UserModel.user_id == target_id).count() == 0
+    assert await Feedback.find(Feedback.user_id == target_id).count() == 0

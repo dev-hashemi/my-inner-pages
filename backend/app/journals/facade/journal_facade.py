@@ -44,12 +44,14 @@ class JournalFacade:
 
         normalized_tags = self._normalize_tags(tags or [])
         rumination_index = compute_rumination_index(content_text)
+        word_count = len(content_text.split())
 
         journal = await self.repository.create(
             user_id=user_id,
             title=title,
             content_json=content_json,
             content_text=content_text,
+            word_count=word_count,
             tags=normalized_tags,
             rumination_index=rumination_index,
             created_at=created_at,
@@ -73,12 +75,20 @@ class JournalFacade:
         page_size: int = 20,
         tags: Optional[list[str]] = None,
         tag_mode: str = "or",
+        q: Optional[str] = None,
+        sort: str = "date-desc",
     ) -> tuple[list[Journal], Optional[str]]:
         page_size = min(page_size, self.config.max_page_size)
         page_size = max(1, page_size)
 
         journals, next_cursor = await self.repository.find_all_by_user(
-            user_id, cursor=cursor, limit=page_size, tags=tags, tag_mode=tag_mode
+            user_id,
+            cursor=cursor,
+            limit=page_size,
+            tags=tags,
+            tag_mode=tag_mode,
+            q=q,
+            sort=sort,
         )
 
         return journals, next_cursor
@@ -102,11 +112,13 @@ class JournalFacade:
                 self._validate_title(title)
 
         content_text: Optional[str] = None
+        word_count: Optional[int] = None
         rumination_index: Optional[float] = None
 
         if content_json is not None:
             content_text = extract_text_from_tiptap_json(content_json)
             self._validate_content(content_text)
+            word_count = len(content_text.split())
             rumination_index = compute_rumination_index(content_text)
 
         old_tags: list[str] = []
@@ -122,6 +134,7 @@ class JournalFacade:
             title=title,
             content_json=content_json,
             content_text=content_text,
+            word_count=word_count,
             tags=tags,
             rumination_index=rumination_index,
             created_at=created_at,

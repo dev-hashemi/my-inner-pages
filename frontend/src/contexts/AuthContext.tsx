@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
-import { toast } from 'sonner';
 import { emitAuthSessionChanged } from '@/utils/authSession';
 import { authService } from '@/services/authService';
+import { clearUnsyncedEntries, ensureOfflineOwner } from '@utils/offlineStorage';
 
 export interface User {
   id: string;
@@ -87,6 +87,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (userData) {
         if (!mountedRef.current || requestVersion !== authCheckVersionRef.current) return;
+        ensureOfflineOwner(userData.id);
         setUser(mapUser(userData));
         setIsAuthenticated(true);
       } else {
@@ -104,25 +105,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = useCallback(async (email: string, password: string): Promise<void> => {
     authCheckVersionRef.current += 1;
-    const data = await authService.login(email, password).catch((err) => {
-      if (err.message?.includes('429')) {
-        toast.error('Too many login attempts — please wait a moment');
-      }
-      throw err;
-    });
+    const data = await authService.login(email, password);
 
+    ensureOfflineOwner(data.user.id);
     emitAuthSessionChanged(true);
     setUser(mapUser(data.user));
     setIsAuthenticated(true);
   }, []);
 
   const register = useCallback(async (email: string, password: string, confirmPassword: string): Promise<void> => {
-    await authService.register(email, password, confirmPassword).catch((err) => {
-      if (err.message?.includes('429')) {
-        toast.error('Too many registration attempts — please wait a moment');
-      }
-      throw err;
-    });
+    await authService.register(email, password, confirmPassword);
   }, []);
 
   const verifyEmail = useCallback(async (token: string): Promise<void> => {
@@ -130,26 +122,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const resendVerification = useCallback(async (email: string): Promise<void> => {
-    await authService.resendVerification(email).catch((err) => {
-      if (err.message?.includes('429')) {
-        toast.error('Too many requests — please wait a moment');
-      }
-      throw err;
-    });
+    await authService.resendVerification(email);
   }, []);
 
   const resetPassword = useCallback(async (email: string): Promise<void> => {
-    await authService.resetPassword(email).catch((err) => {
-      if (err.message?.includes('429')) {
-        toast.error('Too many password reset attempts — please wait a moment');
-      }
-      throw err;
-    });
+    await authService.resetPassword(email);
   }, []);
 
   const logout = useCallback(async (): Promise<void> => {
     await authService.logout();
     clearSessionData();
+    clearUnsyncedEntries();
     emitAuthSessionChanged(false);
     setUser(null);
     setIsAuthenticated(false);

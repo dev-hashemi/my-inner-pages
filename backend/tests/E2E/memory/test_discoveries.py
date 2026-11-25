@@ -85,3 +85,4 @@ async def test_get_discoveries_active_state(
     assert data["activeThemes"] == ["nature", "mindfulness"]
     assert len(data["moments"]) >= 1
     assert data["moments"][0]["type"] == "first_entry"
+    assert data["journey"]["totalWords"] == 8

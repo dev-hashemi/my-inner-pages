@@ -91,7 +91,7 @@ class UserModelUpdater:
             logger.info("user_model_update_needed_by_entries", user_id=user_id, new_entries=new_entries)
             return True
 
-        total_words = await self._count_total_words(user_id)
+        total_words = await self.journal_repository.sum_words_by_user(user_id)
         new_words = total_words - (user_model.stats.totalWords or 0)
         if new_words >= self.config.update_after_words:
             logger.info("user_model_update_needed_by_words", user_id=user_id, new_words=new_words)
@@ -150,7 +150,7 @@ class UserModelUpdater:
             updated.version += 1
             updated.updatedAt = datetime.now(timezone.utc)
             updated.stats.totalEntries = await self.journal_repository.count_by_user(user_id)
-            updated.stats.totalWords = await self._count_total_words(user_id)
+            updated.stats.totalWords = await self.journal_repository.sum_words_by_user(user_id)
             updated.stats.lastUpdatedEntryCount = updated.stats.totalEntries
 
             await self.user_model_repository.upsert(updated)
@@ -165,13 +165,6 @@ class UserModelUpdater:
                 error_type=type(e).__name__,
             )
             raise
-
-    async def _count_total_words(self, user_id: str) -> int:
-        journals, _ = await self.journal_repository.find_all_by_user(
-            user_id=user_id,
-            limit=10000,
-        )
-        return sum(len((j.content_text or "").split()) for j in journals)
 
     def _format_journals_for_prompt(self, journals: list[Journal]) -> str:
         parts = []

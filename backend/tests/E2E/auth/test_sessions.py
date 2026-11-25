@@ -183,3 +183,51 @@ async def test_logout_revokes_session_family(
     # Old session should be revoked, leaving only the 1 current session
     assert data["total_count"] == 1
     assert data["sessions"][0]["is_current"] is True
+
+
+@pytest.mark.asyncio
+async def test_cannot_revoke_another_users_session(
+    client: AsyncClient, test_user: dict, another_test_user: dict
+):
+    """Verify a user cannot revoke another user's session family ID."""
+    res_victim = await client.post(
+        "/api/v0/auth/login",
+        json={"email": test_user["email"], "password": test_user["password"]},
+    )
+    assert res_victim.status_code == 200
+    victim_access = res_victim.cookies.get("access_token")
+    victim_refresh = res_victim.cookies.get("refresh_token")
+
+    sessions_res = await client.get(
+        "/api/v0/auth/sessions",
+        headers={"Cookie": f"access_token={victim_access}"},
+    )
+    assert sessions_res.status_code == 200
+    victim_family_id = sessions_res.json()["sessions"][0]["family_id"]
+
+    res_attacker = await client.post(
+        "/api/v0/auth/login",
+        json={"email": another_test_user["email"], "password": another_test_user["password"]},
+    )
+    assert res_attacker.status_code == 200
+    attacker_access = res_attacker.cookies.get("access_token")
+
+    client.cookies.clear()
+    revoke_res = await client.delete(
+        f"/api/v0/auth/sessions/{victim_family_id}",
+        headers={"Cookie": f"access_token={attacker_access}"},
+    )
+    assert revoke_res.status_code == 404
+
+    # Victim session must remain valid
+    verify_res = await client.get(
+        "/api/v0/auth/verify",
+        headers={"Cookie": f"access_token={victim_access}"},
+    )
+    assert verify_res.status_code == 200
+
+    refresh_res = await client.post(
+        "/api/v0/auth/refresh",
+        headers={"Cookie": f"refresh_token={victim_refresh}"},
+    )
+    assert refresh_res.status_code == 200

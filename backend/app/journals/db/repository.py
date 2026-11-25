@@ -1,5 +1,6 @@
 import json
 import base64
+import re
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from bson import ObjectId
@@ -27,6 +28,7 @@ class JournalRepository:
         title: Optional[str],
         content_json: Dict[str, Any],
         content_text: str = "",
+        word_count: Optional[int] = None,
         tags: Optional[list[str]] = None,
         rumination_index: Optional[float] = None,
         created_at: Optional[datetime] = None,
@@ -37,6 +39,7 @@ class JournalRepository:
                 title=title,
                 content_json=content_json,
                 content_text=content_text,
+                word_count=word_count if word_count is not None else len(content_text.split()),
                 tags=tags or [],
                 rumination_index=rumination_index,
             )
@@ -87,27 +90,48 @@ class JournalRepository:
         limit: int = 20,
         tags: Optional[list[str]] = None,
         tag_mode: str = "or",
+        q: Optional[str] = None,
+        sort: str = "date-desc",
     ) -> tuple[list[Journal], Optional[str]]:
         try:
+            is_asc = sort == "date-asc"
+            sort_dir = 1 if is_asc else -1
+            cmp_op = "$gt" if is_asc else "$lt"
+
             query: dict = {"user_id": user_id}
             if tags:
                 operator = "$all" if tag_mode == "and" else "$in"
                 query["tags"] = {operator: tags}
+
+            and_conditions: list[dict] = []
+            if q and q.strip():
+                escaped = re.escape(q.strip())
+                and_conditions.append({
+                    "$or": [
+                        {"title": {"$regex": escaped, "$options": "i"}},
+                        {"content_text": {"$regex": escaped, "$options": "i"}},
+                    ]
+                })
             if cursor:
                 decoded = self._decode_cursor(cursor)
                 if decoded is None:
                     return [], None
                 cursor_created_at, cursor_id = decoded
-                query["$or"] = [
-                    {"created_at": {"$lt": cursor_created_at}},
-                    {
-                        "created_at": cursor_created_at,
-                        "_id": {"$lt": cursor_id},
-                    },
-                ]
+                and_conditions.append({
+                    "$or": [
+                        {"created_at": {cmp_op: cursor_created_at}},
+                        {
+                            "created_at": cursor_created_at,
+                            "_id": {cmp_op: cursor_id},
+                        },
+                    ]
+                })
+            if and_conditions:
+                query["$and"] = and_conditions
+
             journals = await (
                 self.model.find(query)
-                .sort([("created_at", -1), ("_id", -1)])
+                .sort([("created_at", sort_dir), ("_id", sort_dir)])
                 .limit(limit + 1)
                 .to_list()
             )
@@ -140,6 +164,31 @@ class JournalRepository:
                 details={"user_id": user_id, "error": str(e)}
             )
 
+    async def sum_words_by_user(self, user_id: str) -> int:
+        try:
+            collection = self.model.get_motor_collection()
+            pipeline = [
+                {"$match": {"user_id": user_id}},
+                {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$word_count", 0]}}}},
+            ]
+            agg = await collection.aggregate(pipeline).to_list(length=1)
+            total = int(agg[0]["total"]) if agg else 0
+
+            # Fallback for pre-migration documents missing word_count
+            legacy_docs = await collection.find(
+                {"user_id": user_id, "word_count": {"$exists": False}},
+                {"content_text": 1},
+            ).to_list(length=None)
+            if legacy_docs:
+                total += sum(len((d.get("content_text") or "").split()) for d in legacy_docs)
+            return total
+        except PyMongoError as e:
+            logger.error("journal_sum_words_failed", error=str(e), user_id=user_id)
+            raise RepositoryException(
+                f"Failed to sum journal words: {str(e)}",
+                details={"user_id": user_id, "error": str(e)},
+            )
+
     async def find_first_by_user(self, user_id: str) -> Optional[Journal]:
         try:
             return await self.model.find({"user_id": user_id}).sort([("created_at", 1), ("_id", 1)]).first_or_none()
@@ -161,6 +210,7 @@ class JournalRepository:
         title: Optional[str] = None,
         content_json: Optional[Dict[str, Any]] = None,
         content_text: Optional[str] = None,
+        word_count: Optional[int] = None,
         tags: Optional[list[str]] = None,
         rumination_index: Optional[float] = None,
         created_at: Optional[datetime] = None,
@@ -174,6 +224,8 @@ class JournalRepository:
                 update_data["content_json"] = content_json
             if content_text is not None:
                 update_data["content_text"] = content_text
+            if word_count is not None:
+                update_data["word_count"] = word_count
             if tags is not None:
                 update_data["tags"] = tags
             if rumination_index is not None:

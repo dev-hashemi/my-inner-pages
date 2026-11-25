@@ -7,7 +7,7 @@ from typing import Optional
 from app.ai.config import AIModuleConfig
 from app.ai.services.chat_service import ChatService
 from app.chat.facade import ChatPersistenceFacade
-from app.chat.history_manager import ChatHistoryManager
+from app.core.exceptions import InvalidIdentifierException
 from app.core.logging import get_logger
 from app.core.rate_limit import check_rate_limit
 
@@ -68,31 +68,56 @@ class ChatFacade:
 
         if actual_chat_id:
             try:
-                chat, windowed_history = await self._chat_persistence.get_or_create_chat(
-                    user_id, chat_id=actual_chat_id
+                chat = await self._chat_persistence.get_chat(actual_chat_id, user_id)
+            except InvalidIdentifierException:
+                logger.warning("chat_load_invalid_id", chat_id=actual_chat_id, user_id=user_id)
+                yield format_sse("error", {"content": "Invalid chat identifier."})
+                return
+            except Exception as e:
+                logger.error(
+                    "chat_load_failed",
+                    chat_id=actual_chat_id,
+                    user_id=user_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
                 )
-                running_history = list(windowed_history)
-            except Exception:
-                logger.warning("chat_load_failed", chat_id=actual_chat_id, user_id=user_id)
-                actual_chat_id = None
+                yield format_sse("error", {"content": "Failed to load chat."})
+                return
 
-        if not actual_chat_id:
+            if not chat:
+                logger.warning("chat_not_found", chat_id=actual_chat_id, user_id=user_id)
+                yield format_sse("error", {"content": "Chat not found."})
+                return
+
+            # Truncate against full chat.messages before windowing for LLM context.
+            if edit_message_index is not None and edit_message_index >= 0:
+                keep = min(edit_message_index, len(chat.messages))
+                try:
+                    chat = await self._chat_persistence.truncate_messages(
+                        actual_chat_id, user_id, keep
+                    )
+                except Exception as e:
+                    logger.error(
+                        "edit_truncate_failed",
+                        chat_id=actual_chat_id,
+                        keep=keep,
+                        error=str(e),
+                        error_type=type(e).__name__,
+                    )
+                    yield format_sse(
+                        "error", {"content": "Failed to edit message. Please try again."}
+                    )
+                    return
+
+            running_history = self._chat_persistence.history_manager.prepare_for_context(
+                chat.messages
+            )
+        else:
             chat = await self._chat_persistence.create_chat(user_id)
             actual_chat_id = str(chat.id)
             is_first_response = True
 
         yield format_sse("context_loaded", {"chat_id": actual_chat_id})
-
-        # Handle edit truncation if specified
-        if edit_message_index is not None and edit_message_index >= 0:
-            keep = min(edit_message_index, len(running_history))
-            running_history = running_history[:keep]
-            try:
-                await self._chat_persistence.truncate_messages(
-                    actual_chat_id, user_id, keep
-                )
-            except Exception as e:
-                logger.error("edit_truncate_failed", chat_id=actual_chat_id, keep=keep, error=str(e), error_type=type(e).__name__)
 
         # Send ACK if message_id provided
         if message_id:

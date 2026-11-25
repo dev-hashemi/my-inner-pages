@@ -1,4 +1,5 @@
 import asyncio
+import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -15,7 +16,10 @@ from app.admin.api.schemas import (
 from app.auth.db.models import RefreshToken, User
 from app.chat.db.models import Chat
 from app.core.validators import validate_object_id
+from app.feedback.db.models import Feedback
 from app.journals.db.models import Journal
+from app.journals.db.tag_model import Tag
+from app.memory.db.models import UserModel
 
 PERIOD_DAYS_MAP = {
     "7d": 7,
@@ -165,7 +169,7 @@ class AdminStatsFacade:
         """Fetch paginated registered users with email search and per-user activity metrics."""
         query = {}
         if search and search.strip():
-            query["email"] = {"$regex": search.strip(), "$options": "i"}
+            query["email"] = {"$regex": re.escape(search.strip()), "$options": "i"}
 
         collection_users = User.get_motor_collection()
         collection_journals = Journal.get_motor_collection()
@@ -265,10 +269,14 @@ class AdminStatsFacade:
             raise KeyError("User not found")
 
         # Cascading deletion across all collections for this user
+        uid_str = str(user.id)
         await asyncio.gather(
             RefreshToken.find(RefreshToken.user_id == user.id).delete(),
-            Journal.find(Journal.user_id == str(user.id)).delete(),
-            Chat.find(Chat.user_id == str(user.id)).delete(),
+            Journal.find(Journal.user_id == uid_str).delete(),
+            Chat.find(Chat.user_id == uid_str).delete(),
+            Tag.find(Tag.user_id == uid_str).delete(),
+            UserModel.find(UserModel.user_id == uid_str).delete(),
+            Feedback.find(Feedback.user_id == uid_str).delete(),
         )
 
         await user.delete()

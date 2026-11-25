@@ -1,6 +1,9 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
+import { deleteJournalIndexedDb, getJournalDbName } from '@utils/offlineStorage';
+
+export { getJournalDbName };
 
 interface UseJournalDocResult {
   ydoc: Y.Doc;
@@ -9,7 +12,8 @@ interface UseJournalDocResult {
 
 export function useJournalDoc(
   entryId: string | number,
-  initialTitle: string
+  initialTitle: string,
+  userId?: string | null
 ): UseJournalDocResult {
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -26,7 +30,7 @@ export function useJournalDoc(
   useEffect(() => {
     setIsLoaded(false);
 
-    const dbName = `my-inner-pages-journal-${entryId}`;
+    const dbName = getJournalDbName(entryId, userId);
     const persistence = new IndexeddbPersistence(dbName, ydoc);
 
     const handleSynced = () => {
@@ -51,8 +55,11 @@ export function useJournalDoc(
     return () => {
       persistence.off('synced', handleSynced);
       persistence.destroy();
+      if (String(entryId) === 'new') {
+        deleteJournalIndexedDb(dbName);
+      }
     };
-  }, [ydoc, entryId]);
+  }, [ydoc, entryId, userId]);
 
   return { ydoc, isLoaded };
 }

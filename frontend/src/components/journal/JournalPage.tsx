@@ -29,6 +29,7 @@ interface JournalPageProps {
   onUpdate?: (updates: Partial<JournalEntry>) => void;
   onUpdateById?: (id: string | number, updates: Partial<JournalEntry>) => Promise<void>;
   onCreate?: (title: string, content: string, tags: string[], created_at?: string, content_json?: any) => Promise<number | string>;
+  onDraftCreated?: (draftId: string) => void;
   onDelete: () => void;
   onChat: () => void;
   onBack: () => void;
@@ -45,6 +46,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({
   onUpdate,
   onUpdateById,
   onCreate,
+  onDraftCreated,
   onDelete,
   onChat,
   onBack,
@@ -254,6 +256,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({
     allTags,
     entryDate,
     onCreate,
+    onDraftCreated,
     onUpdate,
     onUpdateById,
   });
@@ -291,15 +294,6 @@ export const JournalPage: React.FC<JournalPageProps> = ({
       }
     }
   };
-
-  useEffect(() => {
-    return () => {
-      if (docEntryId === 'new') {
-        const dbName = `my-inner-pages-journal-new`;
-        indexedDB.deleteDatabase(dbName);
-      }
-    };
-  }, [docEntryId]);
 
   const handleBack = useCallback(async () => {
     if (isNavigatingBackRef.current) return;

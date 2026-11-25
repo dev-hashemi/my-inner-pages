@@ -1,6 +1,7 @@
+from datetime import datetime, timezone
 import re
 from typing import Optional
-from beanie.operators import In
+from pymongo import UpdateOne
 from pymongo.errors import PyMongoError
 
 from app.journals.db.tag_model import Tag
@@ -27,16 +28,19 @@ class TagRepository:
         if not tags:
             return
         try:
-            for name in tags:
-                existing = await self.model.find_one(
-                    {"user_id": user_id, "name": name}
+            now = datetime.now(timezone.utc)
+            ops = [
+                UpdateOne(
+                    {"user_id": user_id, "name": name},
+                    {
+                        "$inc": {"usage_count": 1},
+                        "$setOnInsert": {"color": None, "created_at": now},
+                    },
+                    upsert=True,
                 )
-                if existing:
-                    existing.usage_count += 1
-                    await existing.save()
-                else:
-                    tag = Tag(user_id=user_id, name=name, usage_count=1)
-                    await tag.insert()
+                for name in tags
+            ]
+            await self.model.get_motor_collection().bulk_write(ops, ordered=False)
         except PyMongoError as e:
             logger.error("tag_upsert_failed", error=str(e), user_id=user_id)
             raise RepositoryException(
@@ -48,16 +52,18 @@ class TagRepository:
         if not tags:
             return
         try:
-            for name in tags:
-                existing = await self.model.find_one(
-                    {"user_id": user_id, "name": name}
+            collection = self.model.get_motor_collection()
+            ops = [
+                UpdateOne(
+                    {"user_id": user_id, "name": name},
+                    {"$inc": {"usage_count": -1}},
                 )
-                if existing:
-                    existing.usage_count -= 1
-                    if existing.usage_count <= 0:
-                        await existing.delete()
-                    else:
-                        await existing.save()
+                for name in tags
+            ]
+            await collection.bulk_write(ops, ordered=False)
+            await collection.delete_many(
+                {"user_id": user_id, "name": {"$in": tags}, "usage_count": {"$lte": 0}}
+            )
         except PyMongoError as e:
             logger.error("tag_remove_failed", error=str(e), user_id=user_id)
             raise RepositoryException(
@@ -164,9 +170,11 @@ class TagRepository:
                 if j.content_json and re.search(rf"#{escaped_old}\b", extract_text_from_tiptap_json(j.content_json), re.IGNORECASE):
                     j.content_json = replace_hashtag_in_tiptap_json(j.content_json, old_norm, new_norm)
                     j.content_text = extract_text_from_tiptap_json(j.content_json)
+                    j.word_count = len(j.content_text.split())
                     updated = True
                 elif j.content_text and re.search(rf"#{escaped_old}\b", j.content_text, re.IGNORECASE):
                     j.content_text = replace_hashtag_in_text(j.content_text, old_norm, new_norm)
+                    j.word_count = len(j.content_text.split())
                     updated = True
 
                 if updated:
@@ -229,9 +237,11 @@ class TagRepository:
                 if j.content_json and re.search(rf"#{escaped_name}\b", extract_text_from_tiptap_json(j.content_json), re.IGNORECASE):
                     j.content_json = replace_hashtag_in_tiptap_json(j.content_json, norm, None)
                     j.content_text = extract_text_from_tiptap_json(j.content_json)
+                    j.word_count = len(j.content_text.split())
                     updated = True
                 elif j.content_text and re.search(rf"#{escaped_name}\b", j.content_text, re.IGNORECASE):
                     j.content_text = replace_hashtag_in_text(j.content_text, norm, None)
+                    j.word_count = len(j.content_text.split())
                     updated = True
 
                 if updated:

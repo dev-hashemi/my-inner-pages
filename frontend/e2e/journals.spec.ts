@@ -77,4 +77,39 @@ test.describe('Journal CRUD', () => {
       { timeout: 10000 }
     ).toBe(0);
   });
+
+  test('searches, filters by tag, and sorts journal entries', async ({ page }) => {
+    await createEntry(page, 'Morning Walk', 'Feeling peaceful #nature #morning');
+    await createEntry(page, 'Work Sprint', 'Deep focus session #work');
+    await createEntry(page, 'Evening Gratitude', 'Thankful today #gratitude #morning');
+
+    // Search query
+    const searchInput = page.getByPlaceholder('Search journals...');
+    await searchInput.fill('Sprint');
+    await expect(page.locator('h2').filter({ hasText: 'Work Sprint' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('h2').filter({ hasText: 'Morning Walk' })).toHaveCount(0);
+
+    await searchInput.fill('');
+    await expect(page.locator('h2').filter({ hasText: 'Morning Walk' })).toBeVisible({ timeout: 5000 });
+
+    // Open filters, sort ascending, and filter by tag
+    await page.getByRole('button', { name: 'Show Filters' }).click();
+    await page.locator('select').selectOption('date-asc');
+    await expect.poll(
+      async () => page.locator('h2').first().textContent(),
+      { timeout: 5000 }
+    ).toBe('Morning Walk');
+
+    const filterPanel = page.locator('.card').first();
+    await filterPanel.getByRole('button', { name: 'morning', exact: true }).click();
+    await expect(page.locator('h2').filter({ hasText: 'Morning Walk' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('h2').filter({ hasText: 'Evening Gratitude' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('h2').filter({ hasText: 'Work Sprint' })).toHaveCount(0);
+
+    // Switch to AND mode with a second tag
+    await filterPanel.getByRole('button', { name: /Match any \(OR\)/i }).click();
+    await filterPanel.getByRole('button', { name: 'nature', exact: true }).click();
+    await expect(page.locator('h2').filter({ hasText: 'Morning Walk' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('h2').filter({ hasText: 'Evening Gratitude' })).toHaveCount(0);
+  });
 });

@@ -38,3 +38,8 @@ class DuplicateDocumentException(RepositoryException):
         message = f"{model_name} with {field}='{value}' already exists"
         details = {"model": model_name, "field": field, "value": value}
         super().__init__(message, details)
+
+
+class InvalidIdentifierException(AppException):
+    """Exception raised when an external resource identifier is malformed."""
+    pass

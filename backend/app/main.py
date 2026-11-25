@@ -89,12 +89,16 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    from app.auth.deps import close_token_blacklists
+    from app.auth.api.routes.google import close_google_oauth_services
     import sentry_sdk
     sentry_sdk.add_breadcrumb(
         message="application_shutdown",
         category="lifecycle",
         level="info",
     )
+    await close_token_blacklists()
+    await close_google_oauth_services()
     client.close()
     logger.info("application_shutdown")
 
@@ -165,6 +169,7 @@ def create_app() -> FastAPI:
     from app.core.exceptions import (
         DocumentNotFoundException,
         DuplicateDocumentException,
+        InvalidIdentifierException,
     )
 
     async def auth_exception_handler(request, exc: AuthException):
@@ -180,9 +185,13 @@ def create_app() -> FastAPI:
     async def duplicate_document_handler(request, exc: DuplicateDocumentException):
         return JSONResponse(status_code=400, content={"detail": exc.message})
 
+    async def invalid_identifier_handler(request, exc: InvalidIdentifierException):
+        return JSONResponse(status_code=400, content={"detail": exc.message})
+
     app.add_exception_handler(AuthException, auth_exception_handler)
     app.add_exception_handler(DocumentNotFoundException, document_not_found_handler)
     app.add_exception_handler(DuplicateDocumentException, duplicate_document_handler)
+    app.add_exception_handler(InvalidIdentifierException, invalid_identifier_handler)
 
     # Global handler to mask internal details on 5xx
     from starlette.exceptions import HTTPException as StarletteHTTPException

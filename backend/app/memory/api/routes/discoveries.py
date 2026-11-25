@@ -42,8 +42,7 @@ async def get_discoveries(
 
     total_words = 0
     if total_entries > 0:
-        journals, _ = await journal_repo.find_all_by_user(user_id, limit=10000)
-        total_words = sum(len((j.content_text or "").split()) for j in journals)
+        total_words = await journal_repo.sum_words_by_user(user_id)
 
     model_version = user_model.version if user_model else 0
     last_model_update = (

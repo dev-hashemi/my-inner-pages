@@ -198,4 +198,39 @@ test.describe('Auth flow', () => {
     await expect(page.getByText('Active Devices & Sessions')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('This Device')).toBeVisible({ timeout: 10000 });
   });
+
+  test('coalesces concurrent window focus and API calls on expired access token without revoking session', async ({ page }) => {
+    const user = await createUser(page);
+    await loginAsUser(page, user);
+
+    await expect(
+      page.getByRole('heading', { name: /Your Journal/i })
+    ).toBeVisible({ timeout: 10000 });
+
+    const cookies = await page.context().cookies();
+    const refreshCookie = cookies.find(c => c.name === 'refresh_token');
+    await page.context().clearCookies();
+    if (refreshCookie) {
+      await page.context().addCookies([
+        { name: 'refresh_token', value: refreshCookie.value, path: '/api/v0/auth/refresh', domain: 'localhost' },
+        { name: 'session_exists', value: '1', path: '/', domain: 'localhost' },
+      ]);
+    }
+
+    let refreshCount = 0;
+    page.on('request', req => {
+      if (req.url().includes('/auth/refresh') && req.method() === 'POST') {
+        refreshCount += 1;
+      }
+    });
+
+    // Trigger focus (calls authService.checkStatus) simultaneously with a Settings navigation/API call
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.locator('header button').first().click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+
+    await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Active Devices & Sessions')).toBeVisible({ timeout: 10000 });
+    expect(refreshCount).toBeLessThanOrEqual(1);
+  });
 });

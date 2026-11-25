@@ -50,11 +50,25 @@ class SessionRepository:
             token_doc.is_revoked = True
             await token_doc.save()
 
+    async def family_belongs_to_user(
+        self,
+        family_id: str,
+        user_id: PydanticObjectId,
+    ) -> bool:
+        count = await RefreshToken.find(
+            {"family_id": family_id, "user_id": user_id}
+        ).count()
+        return count > 0
+
     async def revoke_token_family(
         self,
         family_id: str,
+        user_id: Optional[PydanticObjectId] = None,
     ) -> int:
-        result = await RefreshToken.find({"family_id": family_id}).update(
+        query: dict = {"family_id": family_id}
+        if user_id is not None:
+            query["user_id"] = user_id
+        result = await RefreshToken.find(query).update(
             {"$set": {"is_revoked": True}}
         )
         return getattr(result, "modified_count", 0)

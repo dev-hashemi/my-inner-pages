@@ -7,6 +7,7 @@ from app.auth.api.schemas.session import SessionResponse
 from app.auth.config import AuthModuleConfig
 from app.auth.db.models import User
 from app.auth.db.session_repository import SessionRepository
+from app.auth.exceptions import SessionNotFoundError
 from app.auth.services.token_blacklist import TokenBlacklistService
 from app.auth.services.token_service import TokenService
 from app.auth.services.user_agent_service import parse_user_agent
@@ -102,8 +103,10 @@ class SessionService:
         return sessions
 
     async def revoke_session(self, user: User, family_id: str) -> None:
-        """Revoke a specific session family for the user instantly."""
-        await self.repository.revoke_token_family(family_id)
+        """Revoke a specific session family owned by the user instantly."""
+        if not await self.repository.family_belongs_to_user(family_id, user.id):
+            raise SessionNotFoundError("Session not found")
+        await self.repository.revoke_token_family(family_id, user_id=user.id)
         ttl = self.config.access_token_expire_minutes * 60
         await self.token_blacklist.blacklist(f"fam:{family_id}", ttl)
 

@@ -4,7 +4,12 @@ import {
   saveUnsyncedEntry,
   removeUnsyncedEntry,
   isEntryUnsynced,
+  ensureOfflineOwner,
+  clearUnsyncedEntries,
+  subscribeUnsyncedChanges,
+  getJournalDbName,
   STORAGE_KEY,
+  OWNER_KEY,
 } from '../offlineStorage';
 import { JournalEntry } from '@/types';
 
@@ -173,6 +178,44 @@ describe('offlineStorage', () => {
 
     it('returns false if storage is empty', () => {
       expect(isEntryUnsynced('test-123')).toBe(false);
+    });
+  });
+
+  describe('multi-user isolation and subscriptions', () => {
+    it('wipes previous user unsynced drafts when another user logs in', () => {
+      ensureOfflineOwner('user-a');
+      saveUnsyncedEntry(mockEntry);
+      expect(getUnsyncedEntries()).toHaveProperty('test-123');
+
+      ensureOfflineOwner('user-b');
+      expect(getUnsyncedEntries()).toEqual({});
+      expect(localStorageMock.getItem(OWNER_KEY)).toBe('user-b');
+    });
+
+    it('keeps unsynced drafts when the same user logs back in', () => {
+      ensureOfflineOwner('user-a');
+      saveUnsyncedEntry(mockEntry);
+
+      ensureOfflineOwner('user-a');
+      expect(getUnsyncedEntries()).toHaveProperty('test-123');
+    });
+
+    it('notifies subscribers on save, remove, and clear', () => {
+      const listener = vi.fn();
+      const unsubscribe = subscribeUnsyncedChanges(listener);
+
+      saveUnsyncedEntry(mockEntry);
+      removeUnsyncedEntry('test-123');
+      clearUnsyncedEntries();
+      unsubscribe();
+      saveUnsyncedEntry(mockEntry);
+
+      expect(listener).toHaveBeenCalledTimes(3);
+    });
+
+    it('namespaces IndexedDB name by owner', () => {
+      ensureOfflineOwner('user-a');
+      expect(getJournalDbName('entry-1')).toBe('my-inner-pages-journal-user-a-entry-1');
     });
   });
 });

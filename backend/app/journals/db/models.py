@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 import re
 from beanie import Document
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 
 class Journal(Document):
@@ -17,6 +17,11 @@ class Journal(Document):
     content_text: str = Field(
         default="",
         description="Auto-derived plain text content from content_json"
+    )
+    word_count: int = Field(
+        default=0,
+        ge=0,
+        description="Derived word count of content_text",
     )
     tags: list[str] = Field(default_factory=list)
     rumination_index: Optional[float] = Field(
@@ -53,6 +58,12 @@ class Journal(Document):
                     "Only letters, numbers, spaces, underscores, and hyphens are allowed."
                 )
         return v
+
+    @model_validator(mode="after")
+    def populate_word_count(self) -> "Journal":
+        if self.word_count == 0 and self.content_text:
+            self.word_count = len(self.content_text.split())
+        return self
 
     class Settings:
         name = "journals"

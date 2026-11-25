@@ -153,3 +153,26 @@ async def test_list_journals_no_duplicates_across_pages(authenticated_client: As
             break
 
     assert len(all_ids) == 3
+
+
+@pytest.mark.asyncio
+async def test_list_journals_search_and_sort(authenticated_client: AsyncClient, test_user: dict):
+    """Test server-side search query (q) and ascending sort order (date-asc)."""
+    entries = [
+        {"title": "Morning Walk", "content_json": make_tiptap_json("Fresh air outside"), "tags": ["morning"]},
+        {"title": "Evening Thoughts", "content_json": make_tiptap_json("Quiet night reflection"), "tags": ["evening"]},
+        {"title": "Afternoon Coffee", "content_json": make_tiptap_json("Walked to the cafe"), "tags": ["coffee"]},
+    ]
+    for entry in entries:
+        resp = await authenticated_client.post(f"{JOURNALS_PREFIX}{JournalRoutes.ROOT}", json=entry)
+        assert resp.status_code == 201
+
+    search_resp = await authenticated_client.get(f"{JOURNALS_PREFIX}{JournalRoutes.ROOT}?q=walk")
+    assert search_resp.status_code == 200
+    titles = [item["title"] for item in search_resp.json()["items"]]
+    assert set(titles) == {"Morning Walk", "Afternoon Coffee"}
+
+    asc_resp = await authenticated_client.get(f"{JOURNALS_PREFIX}{JournalRoutes.ROOT}?sort=date-asc")
+    assert asc_resp.status_code == 200
+    asc_titles = [item["title"] for item in asc_resp.json()["items"]]
+    assert asc_titles == ["Morning Walk", "Evening Thoughts", "Afternoon Coffee"]

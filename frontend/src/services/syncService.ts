@@ -1,7 +1,7 @@
 import { api } from '@utils/api';
 import { journalResponseSchema } from '@/types/schemas';
 import { JOURNAL_TITLE_MAX_LENGTH } from '@/types';
-import { getUnsyncedEntries, removeUnsyncedEntry } from '@utils/offlineStorage';
+import { deleteJournalIndexedDb, getJournalDbName, getUnsyncedEntries, removeUnsyncedEntry } from '@utils/offlineStorage';
 import { getAuthSession, isCurrentAuthSession } from '@utils/authSession';
 
 const globalInFlight = new Set<string>();
@@ -35,6 +35,7 @@ export async function syncUnsyncedEntries(
 
         if (!isCurrentAuthSession(session)) break;
         removeUnsyncedEntry(id);
+        deleteJournalIndexedDb(getJournalDbName(id));
         if (onIdMigrate && isCurrentAuthSession(session)) {
           onIdMigrate(id, created.id);
         }

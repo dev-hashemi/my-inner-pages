@@ -1,10 +1,16 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, useSyncExternalStore } from 'react';
 import { Edit2 } from 'lucide-react';
 import { JournalEntry, FontStyle, ContentFontSize } from '@/types';
 import { JournalTimeline } from './JournalTimeline';
 import { JournalPage } from './JournalPage';
 import { TagManager } from './TagManager';
-import { getUnsyncedEntries, removeUnsyncedEntry, saveUnsyncedEntry, STORAGE_KEY } from '@utils/offlineStorage';
+import {
+  deleteJournalIndexedDb,
+  getJournalDbName,
+  getUnsyncedEntriesSnapshot,
+  removeUnsyncedEntry,
+  subscribeUnsyncedChanges,
+} from '@utils/offlineStorage';
 import { useAllTags } from '@hooks/useTags';
 
 type SortOption = 'date-desc' | 'date-asc';
@@ -22,6 +28,14 @@ interface JournalViewProps {
   onStartChat: (entry: JournalEntry) => void;
   selectedEntryId: number | string | null;
   onSelectEntry: (id: number | string | null, action?: 'push' | 'replace') => void;
+  searchQuery?: string;
+  selectedTags?: string[];
+  tagMode?: 'or' | 'and';
+  sortBy?: SortOption;
+  onSearchChange?: (query: string) => void;
+  onSelectedTagsChange?: React.Dispatch<React.SetStateAction<string[]>>;
+  onTagModeChange?: (mode: 'or' | 'and') => void;
+  onSortByChange?: (sort: SortOption) => void;
 }
 
 function makeDraftEntry(): JournalEntry {
@@ -81,107 +95,106 @@ export const JournalView: React.FC<JournalViewProps> = ({
   onStartChat,
   selectedEntryId,
   onSelectEntry,
+  searchQuery: controlledSearchQuery,
+  selectedTags: controlledSelectedTags,
+  tagMode: controlledTagMode,
+  sortBy: controlledSortBy,
+  onSearchChange: onControlledSearchChange,
+  onSelectedTagsChange: onControlledSelectedTagsChange,
+  onTagModeChange: onControlledTagModeChange,
+  onSortByChange: onControlledSortByChange,
 }) => {
   const isNewEntry = selectedEntryId === 'new';
   const [editorSessionKey, setEditorSessionKey] = useState<string>('');
+  const activeEditorIdRef = useRef<string | number | null>(null);
 
-  const newSessionRef = useRef(false);
-
-  React.useEffect(() => {
-    if (selectedEntryId !== null) {
-      if (selectedEntryId === 'new') {
-        newSessionRef.current = true;
-        setEditorSessionKey(`new-${Date.now()}`);
-      } else if (newSessionRef.current) {
-        // Transitioning from 'new' to real entry ID — keep the same session key
-        // to avoid remounting the editor mid-typing.
-        newSessionRef.current = false;
-      } else {
-        setEditorSessionKey(String(selectedEntryId));
+  useEffect(() => {
+    const handleIdMigrated = (e: Event) => {
+      const { oldId, newId } = (e as CustomEvent).detail;
+      if (activeEditorIdRef.current !== null && String(activeEditorIdRef.current) === String(oldId)) {
+        activeEditorIdRef.current = newId;
       }
+    };
+    window.addEventListener('journal:id-migrated', handleIdMigrated);
+    return () => window.removeEventListener('journal:id-migrated', handleIdMigrated);
+  }, []);
+
+  useEffect(() => {
+    if (selectedEntryId === null) {
+      activeEditorIdRef.current = null;
+      return;
+    }
+
+    if (selectedEntryId === 'new') {
+      activeEditorIdRef.current = 'new';
+      setEditorSessionKey(`new-${Date.now()}`);
+    } else if (
+      activeEditorIdRef.current === 'new' ||
+      (activeEditorIdRef.current !== null && String(activeEditorIdRef.current) === String(selectedEntryId))
+    ) {
+      // Preserve editor mount across 'new' -> 'draft-*' -> realId transitions
+      activeEditorIdRef.current = selectedEntryId;
+    } else {
+      activeEditorIdRef.current = selectedEntryId;
+      setEditorSessionKey(String(selectedEntryId));
     }
   }, [selectedEntryId]);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [tagMode, setTagMode] = useState<'or' | 'and'>('or');
-  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [localSelectedTags, setLocalSelectedTags] = useState<string[]>([]);
+  const [localTagMode, setLocalTagMode] = useState<'or' | 'and'>('or');
+  const [localSortBy, setLocalSortBy] = useState<SortOption>('date-desc');
+
+  const searchQuery = controlledSearchQuery ?? localSearchQuery;
+  const selectedTags = controlledSelectedTags ?? localSelectedTags;
+  const tagMode = controlledTagMode ?? localTagMode;
+  const sortBy = controlledSortBy ?? localSortBy;
+
+  const setSearchQuery = onControlledSearchChange ?? setLocalSearchQuery;
+  const setSelectedTags = onControlledSelectedTagsChange ?? setLocalSelectedTags;
+  const setTagMode = onControlledTagModeChange ?? setLocalTagMode;
+  const setSortBy = onControlledSortByChange ?? setLocalSortBy;
+
   const [showFilters, setShowFilters] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
 
   const navigatedAwayRef = useRef(false);
-  const localEntryRef = useRef<Map<string | number, JournalEntry> | null>(null);
-  const [syncVersion, setSyncVersion] = useState(0);
-  if (!localEntryRef.current) {
-    const map = new Map<string | number, JournalEntry>();
-    const unsynced = getUnsyncedEntries();
-    Object.values(unsynced).forEach(entry => {
-      map.set(entry.id, entry);
-    });
-    localEntryRef.current = map;
-  }
-
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key !== STORAGE_KEY) return;
-      const unsynced = getUnsyncedEntries();
-      const map = new Map<string | number, JournalEntry>();
-      Object.values(unsynced).forEach(entry => {
-        map.set(entry.id, entry);
-      });
-      localEntryRef.current = map;
-      setSyncVersion(v => v + 1);
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+  const unsyncedMap = useSyncExternalStore(
+    subscribeUnsyncedChanges,
+    getUnsyncedEntriesSnapshot,
+    getUnsyncedEntriesSnapshot,
+  );
 
   useEffect(() => {
     const handleTagUpdated = (e: Event) => {
       const { oldName } = (e as CustomEvent).detail;
       if (!oldName) return;
 
-      const map = localEntryRef.current;
       const lowerOld = oldName.toLowerCase();
 
       entries.forEach(backendEntry => {
         const hasTag = backendEntry.tags?.some(t => t.toLowerCase() === lowerOld);
         const hasTextTag = backendEntry.content?.toLowerCase().includes(`#${lowerOld}`);
         if (hasTag || hasTextTag) {
-          // Delete stale Yjs IndexedDB doc so editor opens with fresh backend content
-          try {
-            indexedDB.deleteDatabase(`my-inner-pages-journal-${backendEntry.id}`);
-          } catch {}
-
-          if (map) {
-            map.delete(backendEntry.id);
-          }
+          deleteJournalIndexedDb(getJournalDbName(backendEntry.id));
           removeUnsyncedEntry(backendEntry.id);
         }
       });
-
-      setSyncVersion(v => v + 1);
     };
 
     window.addEventListener('journal:tag-updated', handleTagUpdated);
     return () => window.removeEventListener('journal:tag-updated', handleTagUpdated);
   }, [entries]);
 
-  // Synchronize and prune localEntryRef entries when they are fully synced to
-  // backend entries or when fresh backend entries arrive. This mutates a ref and
-  // writes localStorage, so it must run as an effect (not during render).
+  // Prune unsynced entries once the backend copy catches up.
   useEffect(() => {
-    const unsyncedMap = getUnsyncedEntries();
     entries.forEach(backendEntry => {
-      const localEntry = localEntryRef.current!.get(backendEntry.id);
-      if (localEntry) {
-        if (!unsyncedMap[backendEntry.id] || isEntrySynced(localEntry, backendEntry)) {
-          localEntryRef.current!.delete(backendEntry.id);
-          removeUnsyncedEntry(backendEntry.id);
-        }
+      const localEntry = unsyncedMap[backendEntry.id];
+      if (localEntry && isEntrySynced(localEntry, backendEntry)) {
+        removeUnsyncedEntry(backendEntry.id);
       }
     });
-  }, [entries]);
+  }, [entries, unsyncedMap]);
 
   const { data: serverTagResponses } = useAllTags();
 
@@ -195,12 +208,11 @@ export const JournalView: React.FC<JournalViewProps> = ({
     entries.forEach(entry => {
       entry.tags?.forEach(tag => tagSet.add(tag));
     });
-    localEntryRef.current!.forEach(entry => {
+    Object.values(unsyncedMap).forEach(entry => {
       entry.tags?.forEach(tag => tagSet.add(tag));
     });
     return Array.from(tagSet).sort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, syncVersion, serverTagResponses]);
+  }, [entries, unsyncedMap, serverTagResponses]);
 
   const tagColorMap = useMemo(() => {
     const map: Record<string, string | null> = {};
@@ -214,14 +226,12 @@ export const JournalView: React.FC<JournalViewProps> = ({
 
   const filteredEntries = useMemo(() => {
     const allEntriesMap = new Map<string | number, JournalEntry>();
-    
-    // Add all backend entries first
+
     entries.forEach(entry => {
       allEntriesMap.set(entry.id, entry);
     });
-    
-    // Override with/add local entries containing unsynced modifications
-    localEntryRef.current!.forEach(entry => {
+
+    Object.values(unsyncedMap).forEach(entry => {
       allEntriesMap.set(entry.id, entry);
     });
 
@@ -250,16 +260,14 @@ export const JournalView: React.FC<JournalViewProps> = ({
     });
 
     return filtered;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, searchQuery, selectedTags, tagMode, sortBy, syncVersion]);
+  }, [entries, unsyncedMap, searchQuery, selectedTags, tagMode, sortBy]);
 
   const currentEntry = useMemo(() => {
     if (selectedEntryId === null) return null;
-    const fromLocal = localEntryRef.current!.get(selectedEntryId);
+    const fromLocal = unsyncedMap[selectedEntryId];
     if (fromLocal) return fromLocal;
     return entries.find(e => e.id === selectedEntryId) || null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, selectedEntryId, syncVersion]);
+  }, [entries, unsyncedMap, selectedEntryId]);
 
   const handleSelectEntry = useCallback((id: number | string) => {
     navigatedAwayRef.current = false;
@@ -277,70 +285,39 @@ export const JournalView: React.FC<JournalViewProps> = ({
   }, [onSelectEntry]);
 
   const handleCreateEntry = useCallback(async (title: string, content: string, tags: string[], created_at?: string, content_json?: any) => {
-    try {
-      const id = await onSaveNewEntry(title, content, tags, created_at, content_json);
-      if (navigatedAwayRef.current) return id;
-      localEntryRef.current!.set(id, {
-        id,
-        title,
-        content,
-        content_json,
-        tags,
-        date: created_at
-          ? new Date(created_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-          : new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
-        created_at,
-      });
-      setSyncVersion(v => v + 1);
+    const id = await onSaveNewEntry(title, content, tags, created_at, content_json);
+    if (!navigatedAwayRef.current) {
+      activeEditorIdRef.current = id;
       onSelectEntry(id, 'replace');
-      return id;
-    } catch (err) {
-      // Offline fallback: generate a client-side draft ID and save it locally
-      const tempId = `draft-${Date.now()}`;
-      const localEntry: JournalEntry = {
-        id: tempId,
-        title,
-        content,
-        content_json,
-        tags,
-        date: created_at
-          ? new Date(created_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-          : new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
-        created_at,
-      };
-      saveUnsyncedEntry(localEntry);
-      localEntryRef.current!.set(tempId, localEntry);
-      setSyncVersion(v => v + 1);
-      onSelectEntry(tempId, 'replace');
-      return tempId;
     }
+    return id;
   }, [onSaveNewEntry, onSelectEntry]);
 
-  const handleUpdateEntry = useCallback(async (id: number | string, updates: Partial<JournalEntry>) => {
-    const local = localEntryRef.current!.get(id);
-    const backend = entries.find(e => e.id === id);
-    const existing = local || backend;
-    if (existing) {
-      localEntryRef.current!.set(id, {
-        ...existing,
-        ...updates,
-      });
-      setSyncVersion(v => v + 1);
+  const handleDraftCreated = useCallback((draftId: string) => {
+    if (!navigatedAwayRef.current) {
+      activeEditorIdRef.current = draftId;
+      onSelectEntry(draftId, 'replace');
     }
+  }, [onSelectEntry]);
+
+  const handleUpdateEntry = useCallback(async (id: number | string, updates: Partial<JournalEntry>) => {
     await onUpdateEntry(id, updates);
-  }, [entries, onUpdateEntry]);
+  }, [onUpdateEntry]);
 
   const handleDeleteEntry = useCallback((id: number | string) => {
-    localEntryRef.current!.delete(id);
-    setSyncVersion(v => v + 1);
-    onDeleteEntry(id);
+    removeUnsyncedEntry(id);
+    if (String(id).startsWith('draft-')) {
+      deleteJournalIndexedDb(getJournalDbName(id));
+    } else {
+      onDeleteEntry(id);
+    }
     onSelectEntry(null);
   }, [onDeleteEntry, onSelectEntry]);
 
   const handleClearFilters = useCallback(() => {
     setSearchQuery('');
     setSelectedTags([]);
-  }, []);
+  }, [setSearchQuery, setSelectedTags]);
 
   const draftEntry = useMemo(() => makeDraftEntry(), []);
   const displayEntry = isNewEntry ? draftEntry : currentEntry;
@@ -359,6 +336,7 @@ export const JournalView: React.FC<JournalViewProps> = ({
             onUpdateById={handleUpdateEntry}
             onUpdate={(updates) => handleUpdateEntry(displayEntry.id, updates)}
             onCreate={isNewEntry ? handleCreateEntry : undefined}
+            onDraftCreated={isNewEntry ? handleDraftCreated : undefined}
             onDelete={() => handleDeleteEntry(displayEntry.id)}
             onChat={() => onStartChat(displayEntry)}
             onBack={handleBackToTimeline}

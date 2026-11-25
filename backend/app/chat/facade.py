@@ -1,12 +1,12 @@
 from typing import Optional
-from beanie import PydanticObjectId
 
 from app.chat.config import ChatModuleConfig
 from app.chat.db.models import Chat
 from app.chat.db.repository import ChatRepository
 from app.chat.history_manager import ChatHistoryManager
-from app.core.exceptions import RepositoryException, DocumentNotFoundException
+from app.core.exceptions import DocumentNotFoundException
 from app.core.logging import get_logger
+from app.core.validators import validate_object_id
 
 logger = get_logger(__name__)
 
@@ -49,7 +49,7 @@ class ChatPersistenceFacade:
     ) -> tuple[Chat, list[dict]]:
         if chat_id:
             try:
-                obj_id = PydanticObjectId(chat_id)
+                obj_id = validate_object_id(chat_id, "chat_id")
                 chat = await self.repository.find_by_id(obj_id, user_id)
                 if chat:
                     history = self.history_manager.prepare_for_context(chat.messages)
@@ -73,7 +73,7 @@ class ChatPersistenceFacade:
         role: str,
         content: str,
     ) -> Chat:
-        obj_id = PydanticObjectId(chat_id)
+        obj_id = validate_object_id(chat_id, "chat_id")
         chat = await self.repository.append_message(obj_id, user_id, role, content)
         if not chat:
             raise DocumentNotFoundException("Chat", chat_id)
@@ -89,7 +89,7 @@ class ChatPersistenceFacade:
         chat_id: str,
         user_id: str,
     ) -> Optional[Chat]:
-        obj_id = PydanticObjectId(chat_id)
+        obj_id = validate_object_id(chat_id, "chat_id")
         return await self.repository.find_by_id(obj_id, user_id)
 
     async def get_history_for_context(
@@ -121,7 +121,7 @@ class ChatPersistenceFacade:
         user_id: str,
         keep_count: int,
     ) -> Chat:
-        obj_id = PydanticObjectId(chat_id)
+        obj_id = validate_object_id(chat_id, "chat_id")
         chat = await self.repository.truncate_messages(obj_id, user_id, keep_count)
         if not chat:
             raise DocumentNotFoundException("Chat", chat_id)
@@ -133,7 +133,7 @@ class ChatPersistenceFacade:
         user_id: str,
         title: str,
     ) -> Optional[Chat]:
-        obj_id = PydanticObjectId(chat_id)
+        obj_id = validate_object_id(chat_id, "chat_id")
         truncated = title[:self.config.max_title_length]
         return await self.repository.update_title(obj_id, user_id, truncated)
 
@@ -142,5 +142,5 @@ class ChatPersistenceFacade:
         chat_id: str,
         user_id: str,
     ) -> bool:
-        obj_id = PydanticObjectId(chat_id)
+        obj_id = validate_object_id(chat_id, "chat_id")
         return await self.repository.delete(obj_id, user_id)

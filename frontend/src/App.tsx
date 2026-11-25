@@ -117,7 +117,23 @@ const AppInner: React.FC = () => {
     setParams(nextParams);
   }, [isAuthenticated, authLoading, syncFromRemote, setParams]);
 
-  const { entries, loading, isLoadingMore, hasMore, loadMore, addEntry, updateEntry, deleteEntry, syncUnsyncedEntries } = useJournalEntries();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagMode, setTagMode] = useState<'or' | 'and'>('or');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc'>('date-desc');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const { entries, loading, isLoadingMore, hasMore, loadMore, addEntry, updateEntry, deleteEntry, syncUnsyncedEntries } = useJournalEntries({
+    tags: selectedTags,
+    tagMode,
+    search: debouncedSearchQuery,
+    sortBy,
+  });
 
   useBackgroundSync({
     isAuthenticated,
@@ -215,7 +231,7 @@ const AppInner: React.FC = () => {
       />
 
       <main className="pt-16 scrollbar-theme">
-        {activeView === 'journal' && loading ? (
+        {activeView === 'journal' && loading && entries.length === 0 && !searchQuery && selectedTags.length === 0 ? (
           <div className="flex items-center justify-center min-h-[600px]">
             <p className="text-secondary text-lg">Loading journals...</p>
           </div>
@@ -233,6 +249,14 @@ const AppInner: React.FC = () => {
             onStartChat={handleStartChat}
             selectedEntryId={selectedEntryId}
             onSelectEntry={(id, action) => updateNavigationState({ selectedEntryId: id }, action)}
+            searchQuery={searchQuery}
+            selectedTags={selectedTags}
+            tagMode={tagMode}
+            sortBy={sortBy}
+            onSearchChange={setSearchQuery}
+            onSelectedTagsChange={setSelectedTags}
+            onTagModeChange={setTagMode}
+            onSortByChange={setSortBy}
           />
         ) : null}
 

@@ -55,7 +55,7 @@ describe('authService', () => {
     expect(result).toEqual(mockRefreshedUser);
   });
 
-  it('checkStatus returns null when both /auth/verify and /auth/refresh fail with 401', async () => {
+  it('checkStatus returns null after a single refresh attempt when both /auth/verify and /auth/refresh fail with 401', async () => {
     globalThis.fetch = vi.fn()
       // First call: /auth/verify returns 401
       .mockResolvedValueOnce({
@@ -64,14 +64,7 @@ describe('authService', () => {
         statusText: 'Unauthorized',
         json: async () => ({ detail: 'Token expired' }),
       })
-      // Second call: /auth/refresh returns 401
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        statusText: 'Unauthorized',
-        json: async () => ({ detail: 'Refresh token expired' }),
-      })
-      // Third call (retry of refresh in checkStatus fallback) returns 401
+      // Second call: single-flight /auth/refresh returns 401
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -81,5 +74,6 @@ describe('authService', () => {
 
     const result = await authService.checkStatus();
     expect(result).toBeNull();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 });

@@ -19,11 +19,29 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["google-auth"])
 
 
+_google_oauth_cache: dict[tuple[str, str, str, str], GoogleOAuthService] = {}
+
+
 def get_google_oauth_service(
     settings: Settings = Depends(get_settings),
     jwt_service: JWTService = Depends(get_jwt_service),
 ) -> GoogleOAuthService:
-    return GoogleOAuthService(settings, jwt_service.secret_key)
+    key = (
+        settings.google_client_id,
+        settings.google_client_secret,
+        settings.google_redirect_uri,
+        jwt_service.secret_key,
+    )
+    if key not in _google_oauth_cache:
+        _google_oauth_cache[key] = GoogleOAuthService(settings, jwt_service.secret_key)
+    return _google_oauth_cache[key]
+
+
+async def close_google_oauth_services() -> None:
+    """Close cached Google OAuth HTTP clients on application shutdown."""
+    for svc in _google_oauth_cache.values():
+        await svc.close()
+    _google_oauth_cache.clear()
 
 
 @router.get(AuthRoutes.GOOGLE_LOGIN, summary="Sign in with Google")

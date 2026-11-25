@@ -67,6 +67,8 @@ async def list_journals(
     cursor: Annotated[Optional[str], Query(description="Opaque cursor from previous page")] = None,
     tags: Annotated[Optional[list[str]], Query(description="Filter by tags")] = None,
     tag_mode: Annotated[str, Query(pattern="^(or|and)$", description="Tag filter mode: 'or' matches any tag, 'and' matches all tags")] = "or",
+    q: Annotated[Optional[str], Query(description="Search query matching title or content")] = None,
+    sort: Annotated[str, Query(pattern="^(date-desc|date-asc)$", description="Sort order: 'date-desc' or 'date-asc'")] = "date-desc",
     current_user: User = Depends(get_current_user),
     facade: JournalFacade = Depends(get_journal_facade)
 ) -> JournalListResponse:
@@ -77,6 +79,8 @@ async def list_journals(
     - **cursor**: Opaque cursor string from the previous page response (omit for first page)
     - **tags**: Filter by tags (repeatable: ?tags=growth&tags=personal)
     - **tag_mode**: 'or' (default) matches any tag, 'and' matches all tags
+    - **q**: Optional case-insensitive text search across title and content
+    - **sort**: 'date-desc' (default) or 'date-asc'
     """
     journals, next_cursor = await facade.list_journals(
         user_id=str(current_user.id),
@@ -84,6 +88,8 @@ async def list_journals(
         page_size=page_size,
         tags=tags,
         tag_mode=tag_mode,
+        q=q,
+        sort=sort,
     )
     
     return JournalListResponse.create(

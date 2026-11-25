@@ -5,8 +5,7 @@ from beanie import PydanticObjectId
 from beanie.odm.queries.update import UpdateResponse
 from pymongo.errors import PyMongoError, DuplicateKeyError
 
-from app.auth.db.models import User, RefreshToken
-from app.auth.db.session_repository import SessionRepository
+from app.auth.db.models import User
 from app.core.exceptions import RepositoryException, DuplicateDocumentException
 from app.core.logging import get_logger
 
@@ -245,69 +244,4 @@ class UserRepository:
                 "updated_at": datetime.now(timezone.utc),
             }},
             response_type=UpdateResponse.NEW_DOCUMENT,
-        )
-
-    # ------------------------------------------------------------------
-    # Refresh Token persistence & rotation methods (delegated to SessionRepository)
-    # ------------------------------------------------------------------
-
-    def __init__(self, session_repository: Optional[SessionRepository] = None):
-        self.model = User
-        self._session_repo = session_repository or SessionRepository()
-
-    async def create_refresh_token(
-        self,
-        user_id: PydanticObjectId,
-        token_hash: str,
-        family_id: str,
-        expires_at: datetime,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> RefreshToken:
-        return await self._session_repo.create_refresh_token(
-            user_id=user_id,
-            token_hash=token_hash,
-            family_id=family_id,
-            expires_at=expires_at,
-            user_agent=user_agent,
-            ip_address=ip_address,
-        )
-
-    async def find_refresh_token_by_hash(
-        self,
-        token_hash: str,
-    ) -> Optional[RefreshToken]:
-        return await self._session_repo.find_refresh_token_by_hash(token_hash)
-
-    async def revoke_refresh_token(
-        self,
-        token_id: PydanticObjectId,
-    ) -> None:
-        await self._session_repo.revoke_refresh_token(token_id)
-
-    async def revoke_token_family(
-        self,
-        family_id: str,
-    ) -> int:
-        return await self._session_repo.revoke_token_family(family_id)
-
-    async def revoke_all_user_tokens(
-        self,
-        user_id: PydanticObjectId,
-    ) -> int:
-        return await self._session_repo.revoke_all_user_tokens(user_id)
-
-    async def find_active_sessions_by_user(
-        self,
-        user_id: PydanticObjectId,
-    ) -> list[RefreshToken]:
-        return await self._session_repo.find_active_sessions_by_user(user_id)
-
-    async def revoke_all_other_families(
-        self,
-        user_id: PydanticObjectId,
-        current_family_id: str,
-    ) -> int:
-        return await self._session_repo.revoke_all_other_families(
-            user_id=user_id, current_family_id=current_family_id
         )

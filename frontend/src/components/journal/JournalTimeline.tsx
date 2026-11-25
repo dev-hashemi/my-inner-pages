@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { Calendar, Tag, Search, Filter, X, Loader2, UnfoldVertical, Settings2 } from 'lucide-react';
 import { JournalEntry, FontStyle, ContentFontSize } from '@/types';
-import { isEntryUnsynced } from '@utils/offlineStorage';
+import { getUnsyncedEntriesSnapshot, subscribeUnsyncedChanges } from '@utils/offlineStorage';
 import { formatTagStyle } from '@utils/tagUtils';
 import { getFontClass, getFontSizeClass } from '@utils/fonts';
 import { renderTextWithLineDirection } from '@utils/textDirection';
@@ -96,6 +96,11 @@ export const JournalTimeline: React.FC<JournalTimelineProps> = ({
   const [openMenuId, setOpenMenuId] = useState<number | string | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const unsyncedMap = useSyncExternalStore(
+    subscribeUnsyncedChanges,
+    getUnsyncedEntriesSnapshot,
+    getUnsyncedEntriesSnapshot,
+  );
 
   useEffect(() => {
     if (!hasMore || isLoadingMore) return;
@@ -285,7 +290,7 @@ export const JournalTimeline: React.FC<JournalTimelineProps> = ({
                   {getMoodDot(entry.mood)}
                   <Calendar className="w-3.5 h-3.5" />
                   <span>{entry.date}</span>
-                  {isEntryUnsynced(entry.id) && (
+                  {Boolean(unsyncedMap[entry.id]) && (
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 ml-auto" title="Unsynced changes (Saved locally)" />
                   )}
                 </div>

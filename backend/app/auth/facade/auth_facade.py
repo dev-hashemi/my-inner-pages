@@ -1,6 +1,3 @@
-import hashlib
-import secrets
-import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -10,15 +7,16 @@ from app.auth.api.schemas.session import SessionResponse
 from app.auth.config import AuthModuleConfig
 from app.auth.db.models import User
 from app.auth.db.repository import UserRepository
+from app.auth.db.session_repository import SessionRepository
 from app.auth.exceptions import (
     InvalidCredentialsError,
     InvalidTokenError,
-    SessionNotFoundError,
     TokenRevokedError,
     UserAlreadyExistsError,
 )
+from app.auth.services.session_service import SessionService
 from app.auth.services.token_blacklist import TokenBlacklistService
-from app.auth.services.user_agent_service import parse_user_agent
+from app.auth.services.token_service import TokenService
 from app.core.exceptions import DuplicateDocumentException, RepositoryException
 from app.core.logging import get_logger
 from app.core.services.email_service import EmailService
@@ -28,20 +26,19 @@ from app.core.services.password_service import PasswordService
 logger = get_logger(__name__)
 
 
-from app.auth.services.session_service import SessionService
-from app.auth.services.token_service import TokenService
-
-
 class AuthFacade:
     """
     Facade for authentication business logic and orchestration.
-    Coordinates between repository, token service, session service, password service,
+    Coordinates between repositories, token service, session service, password service,
     email service, and token blacklist.
     """
 
     def __init__(
         self,
         repository: UserRepository,
+        session_repository: SessionRepository,
+        token_service: TokenService,
+        session_service: SessionService,
         jwt_service: JWTService,
         password_service: PasswordService,
         email_service: EmailService,
@@ -49,18 +46,14 @@ class AuthFacade:
         config: AuthModuleConfig,
     ):
         self.repository = repository
+        self.session_repository = session_repository
+        self.token_service = token_service
+        self.session_service = session_service
         self.jwt_service = jwt_service
         self.password_service = password_service
         self.email_service = email_service
         self.token_blacklist = token_blacklist
         self.config = config
-        self.token_service = TokenService(jwt_service=jwt_service, config=config)
-        self.session_service = SessionService(
-            session_repository=repository._session_repo,
-            token_service=self.token_service,
-            token_blacklist=token_blacklist,
-            config=config,
-        )
 
     async def register(self, email: str, password: str) -> User:
         """
@@ -109,24 +102,6 @@ class AuthFacade:
             logger.error("user_registration_failed", email=email)
             raise
 
-    def _hash_token(self, token: str) -> str:
-        """Compute SHA256 hex digest of a raw refresh token."""
-        return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-    def _generate_token(self, user: User, family_id: Optional[str] = None) -> str:
-        """Create a signed JWT for the given user, embedding family_id if provided."""
-        token_data = {
-            "sub": str(user.id),
-            "email": user.email,
-            "type": "access",
-            "jti": str(uuid.uuid4()),
-            "exp": datetime.now(timezone.utc)
-            + timedelta(minutes=self.config.access_token_expire_minutes),
-        }
-        if family_id:
-            token_data["fam"] = family_id
-        return self.jwt_service.encode_token(token_data)
-
     async def create_session_tokens(
         self,
         user: User,
@@ -134,30 +109,13 @@ class AuthFacade:
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
     ) -> tuple[str, str]:
-        """Create a fresh access + refresh token pair for a user session.
-
-        If `family_id` is provided, the refresh token continues the family chain (RTR).
-        Otherwise, a new family UUID is generated (new login session).
-        """
-        token_family = family_id or str(uuid.uuid4())
-        access_token = self._generate_token(user, family_id=token_family)
-
-        raw_refresh_token = secrets.token_urlsafe(64)
-        token_hash = self._hash_token(raw_refresh_token)
-
-        expires_at = datetime.now(timezone.utc) + timedelta(
-            days=self.config.refresh_token_expire_days
-        )
-
-        await self.repository.create_refresh_token(
-            user_id=user.id,
-            token_hash=token_hash,
-            family_id=token_family,
-            expires_at=expires_at,
+        """Delegate session token pair creation to SessionService."""
+        return await self.session_service.create_session_tokens(
+            user=user,
+            family_id=family_id,
             user_agent=user_agent,
             ip_address=ip_address,
         )
-        return access_token, raw_refresh_token
 
     async def login(
         self,
@@ -206,8 +164,8 @@ class AuthFacade:
         Implements Refresh Token Rotation (RTR) and Reuse Detection:
         If a revoked token is reused, all active tokens in its family are immediately revoked!
         """
-        token_hash = self._hash_token(raw_refresh_token)
-        token_doc = await self.repository.find_refresh_token_by_hash(token_hash)
+        token_hash = self.token_service.hash_token(raw_refresh_token)
+        token_doc = await self.session_repository.find_refresh_token_by_hash(token_hash)
 
         if not token_doc:
             raise InvalidTokenError("Invalid refresh token")
@@ -220,7 +178,7 @@ class AuthFacade:
         if token_doc.is_revoked:
             # REUSE ATTACK DETECTED!
             # Revoke all tokens in this family to protect the user
-            await self.repository.revoke_token_family(token_doc.family_id)
+            await self.session_repository.revoke_token_family(token_doc.family_id)
             logger.warning(
                 "refresh_token_reuse_detected",
                 family_id=token_doc.family_id,
@@ -229,7 +187,7 @@ class AuthFacade:
             raise TokenRevokedError("Revoked refresh token reuse detected")
 
         # Revoke the used refresh token
-        await self.repository.revoke_refresh_token(token_doc.id)
+        await self.session_repository.revoke_refresh_token(token_doc.id)
 
         # Get user
         user = await self.get_user_by_id(str(token_doc.user_id))
@@ -389,16 +347,16 @@ class AuthFacade:
                     await self.token_blacklist.blacklist(jti, ttl)
 
                 if family_id:
-                    await self.repository.revoke_token_family(family_id)
+                    await self.session_repository.revoke_token_family(family_id)
             except Exception as e:
                 logger.warning("logout_token_blacklist_failed", error=str(e))
 
         if raw_refresh_token:
             try:
-                token_hash = self._hash_token(raw_refresh_token)
-                token_doc = await self.repository.find_refresh_token_by_hash(token_hash)
+                token_hash = self.token_service.hash_token(raw_refresh_token)
+                token_doc = await self.session_repository.find_refresh_token_by_hash(token_hash)
                 if token_doc:
-                    await self.repository.revoke_token_family(token_doc.family_id)
+                    await self.session_repository.revoke_token_family(token_doc.family_id)
             except Exception as e:
                 logger.warning("logout_refresh_token_revoke_failed", error=str(e))
 

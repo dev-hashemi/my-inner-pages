@@ -2,7 +2,6 @@ import { test, expect, Page } from '@playwright/test';
 import { dismissAlphaModal } from './fixtures';
 
 async function navigateToChat(page: Page) {
-  await dismissAlphaModal(page);
   await page.locator('header button').first().click();
   await page.getByRole('button', { name: 'Chat' }).click();
   await expect(page.getByRole('heading', { name: /Chat/i, level: 1 })).toBeVisible();
@@ -151,5 +150,25 @@ test.describe('Chat core flows', () => {
 
     // Message still visible
     await expect(page.getByText('Persist this message').first()).toBeVisible();
+  });
+
+  test('edits the last user message and updates the conversation', async ({ page }) => {
+    await navigateToChat(page);
+
+    await page.fill('textarea[placeholder="Type a message..."]', 'Original question');
+    await page.click('button:has(svg.lucide-send)');
+    await expect(page.getByText('Original question').first()).toBeVisible({ timeout: 5000 });
+
+    // Wait for streaming to finish so Edit button becomes available
+    const editBtn = page.locator('button[title="Edit"]').first();
+    await expect(editBtn).toBeAttached({ timeout: 15000 });
+    await editBtn.click({ force: true });
+
+    const editTextarea = page.locator('main textarea').first();
+    await editTextarea.fill('Edited question');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+    await expect(page.getByText('Edited question').first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Original question')).toHaveCount(0);
   });
 });
