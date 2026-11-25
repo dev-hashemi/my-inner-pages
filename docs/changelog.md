@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.6.1-alpha] - 2026-11-25
+
+### Fixed & Improved
+- **Single-Flight Auth Refresh & Streaming Auth**: Consolidated frontend HTTP transport (`api.ts`, `authService.ts`, `useChatStream.ts`) around a single-flight `/auth/refresh` lock to prevent concurrent refresh races triggering Refresh Token Rotation reuse detection, and enabled silent token refresh before SSE chat streaming.
+- **Unified Local-First Journal State & Server Filtering**: Replaced imperative ref caches with `useSyncExternalStore` + optimistic TanStack Query updates, bound offline/IndexedDB storage to the active user to prevent cross-user leakage, unified offline draft creation under `useJournalAutosave` without mid-typing editor remounts, and wired server-side search (`q`), tag filtering, and sorting (`date-asc` / `date-desc`).
+- **Backend Auth Lifecycle & Session Scoping**: Reused process-scoped Redis blacklist and Google OAuth HTTP clients with clean lifespan shutdown, injected `TokenService` and `SessionService` via DI, and enforced `user_id` ownership checks in `revoke_session`.
+- **Chat Edit Truncation & Validation Boundaries**: Evaluated `edit_message_index` against full `chat.messages` before context windowing, surfaced explicit SSE errors instead of silent fallbacks, and standardized `InvalidIdentifierException` → HTTP `400` handling across chat and journal facades.
+- **Query & Cascade Efficiency**: Stored `word_count` on `Journal` to replace 10,000-document full-AST scans on `/discoveries` and user model updates, bulkified tag upserts/removals, escaped admin search regex, and completed user deletion cascades (`Tag`, `UserModel`, `Feedback`).
+- **Test Suite Expansion**: Added unit, backend E2E, and Playwright E2E regression tests covering single-flight refresh, cross-user offline isolation, chat message editing, journal search/tag/sort, session IDOR protection, and admin deletion cascades.
+
 ## [v0.6.0-alpha] - 2026-11-25
 
 ### Removed
